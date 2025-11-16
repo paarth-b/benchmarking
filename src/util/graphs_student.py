@@ -190,6 +190,17 @@ if __name__ == "__main__":
     })
 
     print(f"Merged {len(df_merged)} pairs\n")
+    summary = (
+        df_merged[['score_tmalign', 'score_tmvec2']]
+        .describe()
+        .rename(columns={
+            'score_tmalign': 'tm_align',
+            'score_tmvec2': 'tmvec_student'
+        })
+    )
+    print("Score summary (TM-align vs. TMvec-Student):")
+    print(summary.to_string(float_format=lambda x: f"{x:0.6f}"))
+    print()
 
     # Create timestamped output directory
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

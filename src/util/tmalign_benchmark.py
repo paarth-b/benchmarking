@@ -52,16 +52,16 @@ def run_tmalign(pdb1, pdb2, tmalign_binary):
     """
     try:
         result = subprocess.run(
-            [tmalign_binary, str(pdb1), str(pdb2)],
+            [tmalign_binary, str(pdb1), str(pdb2), "-a", "T"],
             capture_output=True,
             text=True,
             timeout=60
         )
 
         # Parse TM-score from output
-        # Look for line like: "TM-score= 0.12345 (if normalized by length of Chain_1)"
+        # Look for line like: "TM-score= 0.12345 (if normalized by average length of two structures, i.e., LN= 162.0, d0= 4.74)"
         for line in result.stdout.split('\n'):
-            if line.startswith('TM-score=') and 'Chain_1' in line:
+            if line.startswith('TM-score=') and 'average length' in line:
                 tm_score = float(line.split()[1])
                 return tm_score
 

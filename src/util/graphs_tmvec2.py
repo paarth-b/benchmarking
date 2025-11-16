@@ -164,6 +164,53 @@ def plot_correlation_scatter(df, x_col, y_col, output_path=None):
     return g.fig, statistics
 
 
+def compute_confusion_matrix(df, truth_col, pred_col, threshold=0.5, output_path=None):
+    """
+    Compute confusion matrix statistics for binary classification using TM-score threshold.
+
+    Args:
+        df: DataFrame with predicted and ground truth scores
+        truth_col: Column name for ground truth scores
+        pred_col: Column name for predicted scores
+        threshold: TM-score threshold for classification (default: 0.5)
+        output_path: Path to save CSV (without extension), optional
+
+    Returns:
+        DataFrame with confusion matrix statistics
+    """
+    # Drop NA values
+    plot_df = df[[truth_col, pred_col]].dropna()
+
+    # Convert to binary classification
+    y_true = (plot_df[truth_col] >= threshold).astype(int)
+    y_pred = (plot_df[pred_col] >= threshold).astype(int)
+
+    # Compute confusion matrix elements
+    tp = ((y_true == 1) & (y_pred == 1)).sum()
+    tn = ((y_true == 0) & (y_pred == 0)).sum()
+    fp = ((y_true == 0) & (y_pred == 1)).sum()
+    fn = ((y_true == 1) & (y_pred == 0)).sum()
+
+    # Compute derived metrics
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+
+    # Create results dataframe
+    results = pd.DataFrame({
+        'metric': ['threshold', 'true_positives', 'true_negatives', 'false_positives',
+                  'false_negatives', 'precision', 'recall', 'f1_score', 'accuracy', 'total_samples'],
+        'value': [threshold, tp, tn, fp, fn, precision, recall, f1, accuracy, len(plot_df)]
+    })
+
+    if output_path:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        results.to_csv(f'{output_path}.csv', index=False)
+
+    return results
+
+
 if __name__ == "__main__":
     # Load actual results
     print("Loading CSV files...")
@@ -201,5 +248,15 @@ if __name__ == "__main__":
     fig2, stats = plot_correlation_scatter(df_merged, 'score_tmalign',
                                           'score_tmvec2', f'{output_dir}/correlation')
 
+    # Confusion Matrix
+    print("3. Confusion matrix (threshold=0.5)")
+    conf_matrix = compute_confusion_matrix(df_merged, 'score_tmalign', 'score_tmvec2',
+                                          threshold=0.5, output_path=f'{output_dir}/confusion_matrix')
+
     print(f"\nStats: R={stats['pearson_r']:.3f}, RMSE={stats['rmse']:.3f}, n={stats['n']}")
+    print(f"Confusion Matrix (threshold=0.5):")
+    print(f"  Accuracy: {conf_matrix.loc[conf_matrix['metric'] == 'accuracy', 'value'].iloc[0]:.3f}")
+    print(f"  Precision: {conf_matrix.loc[conf_matrix['metric'] == 'precision', 'value'].iloc[0]:.3f}")
+    print(f"  Recall: {conf_matrix.loc[conf_matrix['metric'] == 'recall', 'value'].iloc[0]:.3f}")
+    print(f"  F1-Score: {conf_matrix.loc[conf_matrix['metric'] == 'f1_score', 'value'].iloc[0]:.3f}")
     print(f"\nDone. Check {output_dir}/ directory")

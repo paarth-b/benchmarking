@@ -24,7 +24,7 @@ def plot_kde_comparison(df, pred_col, truth_col, output_path=None):
 
     Args:
         df: DataFrame with predicted and ground truth scores
-        pred_col: Column name for predictions (e.g., 'tmvec2_score')
+        pred_col: Column name for predictions (e.g., 'tmvec_student_score')
         truth_col: Column name for ground truth (e.g., 'tmalign_score')
         output_path: Path to save figure (without extension), optional
     """
@@ -103,7 +103,7 @@ def plot_correlation_scatter(df, x_col, y_col, output_path=None):
     Args:
         df: DataFrame with scores
         x_col: X-axis column (e.g., 'tmalign_score')
-        y_col: Y-axis column (e.g., 'tmvec2_score')
+        y_col: Y-axis column (e.g., 'tmvec_student_score')
         output_path: Path to save figure (without extension), optional
 
     Returns:
@@ -168,34 +168,34 @@ if __name__ == "__main__":
     # Load actual results
     print("Loading CSV files...")
     df_tmalign = pd.read_csv('results/tmalign_similarities.csv').head(100000)
-    df_tmvec2 = pd.read_csv('/scratch/akeluska/prot_distill_divide/benchmarking/results/tmvec_student_similarities.csv').head(100000)
+    df_tmvec_student = pd.read_csv('/scratch/akeluska/prot_distill_divide/benchmarking/results/tmvec_student_similarities.csv').head(100000)
 
     # Merge on sequence IDs
-    # Clean seq IDs for matching (remove range info from tmvec2 IDs)
-    df_tmvec2['seq1_clean'] = df_tmvec2['seq1_id'].str.replace(r'/\d+-\d+', '', regex=True)
-    df_tmvec2['seq2_clean'] = df_tmvec2['seq2_id'].str.replace(r'/\d+-\d+', '', regex=True)
+    # Clean seq IDs for matching (remove range info from tmvec_student IDs)
+    df_tmvec_student['seq1_clean'] = df_tmvec_student['seq1_id'].str.replace(r'/\d+-\d+', '', regex=True)
+    df_tmvec_student['seq2_clean'] = df_tmvec_student['seq2_id'].str.replace(r'/\d+-\d+', '', regex=True)
 
     df_merged = pd.merge(
         df_tmalign[['seq1_id', 'seq2_id', 'tm_score']],
-        df_tmvec2[['seq1_clean', 'seq2_clean', 'tm_score']],
+        df_tmvec_student[['seq1_clean', 'seq2_clean', 'tm_score']],
         left_on=['seq1_id', 'seq2_id'],
         right_on=['seq1_clean', 'seq2_clean'],
-        suffixes=('_tmalign', '_tmvec2')
+        suffixes=('_tmalign', '_tmvec_student')
     )
 
     # Harmonize column names for plotting helpers
     df_merged = df_merged.rename(columns={
         'tm_score_tmalign': 'score_tmalign',
-        'tm_score_tmvec2': 'score_tmvec2'
+        'tm_score_tmvec_student': 'score_tmvec_student'
     })
 
     print(f"Merged {len(df_merged)} pairs\n")
     summary = (
-        df_merged[['score_tmalign', 'score_tmvec2']]
+        df_merged[['score_tmalign', 'score_tmvec_student']]
         .describe()
         .rename(columns={
             'score_tmalign': 'tm_align',
-            'score_tmvec2': 'tmvec_student'
+            'score_tmvec_student': 'tmvec_student'
         })
     )
     print("Score summary (TM-align vs. TMvec-Student):")
@@ -210,13 +210,13 @@ if __name__ == "__main__":
 
     # Plot 1: KDE
     print("1. KDE comparison")
-    fig1 = plot_kde_comparison(df_merged, 'score_tmvec2', 'score_tmalign',
+    fig1 = plot_kde_comparison(df_merged, 'score_tmvec_student', 'score_tmalign',
                                f'{output_dir}/kde_comparison')
 
     # Plot 2: Correlation
     print("2. Correlation scatter")
     fig2, stats = plot_correlation_scatter(df_merged, 'score_tmalign',
-                                          'score_tmvec2', f'{output_dir}/correlation')
+                                          'score_tmvec_student', f'{output_dir}/correlation')
 
     print(f"\nStats: R={stats['pearson_r']:.3f}, RMSE={stats['rmse']:.3f}, n={stats['n']}")
     print(f"\nDone. Check {output_dir}/ directory")

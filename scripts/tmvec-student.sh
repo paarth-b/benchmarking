@@ -36,7 +36,7 @@ module load mamba/latest
 #Activate our enviornment
 source activate tmvec_distill
 
-STUDENT_CHECKPOINT=/scratch/akeluska/prot_distill_divide/tmvec_student.pt
+STUDENT_CHECKPOINT=/scratch/akeluska/prot_distill_divide/benchmarking/binaries/tmvec_student.pt
 FASTA_FILE=/scratch/akeluska/prot_distill_divide/data/fasta/cath-domain-seqs-S100-1k.fa
 OUTPUT_FILE=/scratch/akeluska/prot_distill_divide/benchmarking/results/tmvec_student_similarities.csv
 

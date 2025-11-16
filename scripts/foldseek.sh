@@ -33,19 +33,16 @@ module load mamba/latest
 source activate tmvec_distill
 
 FOLDSEEK_BIN=${WORKDIR}/binaries/foldseek
-FASTA_FILE=/scratch/akeluska/prot_distill_divide/data/fasta/cath-domain-seqs-S100-1k.fa
 STRUCTURE_DIR=/scratch/akeluska/prot_distill_divide/data/pdb/cath-s100-1k
 OUTPUT_FILE=${WORKDIR}/results/foldseek_similarities.csv
 THREADS=${SLURM_CPUS_PER_TASK:-32}
 
 echo "Foldseek binary: ${FOLDSEEK_BIN}"
-echo "FASTA: ${FASTA_FILE}"
 echo "Structure dir: ${STRUCTURE_DIR}"
 echo "Output: ${OUTPUT_FILE}"
 echo ""
 
 python -m src.util.foldseek_benchmark \
-    --fasta "${FASTA_FILE}" \
     --structure-dir "${STRUCTURE_DIR}" \
     --foldseek-bin "${FOLDSEEK_BIN}" \
     --output "${OUTPUT_FILE}" \

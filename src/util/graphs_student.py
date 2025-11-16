@@ -214,7 +214,7 @@ def compute_confusion_matrix(df, truth_col, pred_col, threshold=0.5, output_path
 if __name__ == "__main__":
     # Load actual results
     print("Loading CSV files...")
-    df_tmalign = pd.read_csv('results/tmalign_similarities.csv').head(100000)
+    df_tmalign = pd.read_csv('results/tmalign_similarities.csv')
     df_tmvec_student = pd.read_csv('/scratch/akeluska/prot_distill_divide/benchmarking/results/tmvec_student_similarities.csv').head(100000)
 
     # Merge on sequence IDs
@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
     # Create timestamped output directory
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_dir = f'figures/{timestamp}'
+    output_dir = f'figures/tmvec_student_{timestamp}'
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     print(f"Saving to: {output_dir}/\n")
 

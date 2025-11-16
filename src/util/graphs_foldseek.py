@@ -24,14 +24,14 @@ def plot_kde_comparison(df, pred_col, truth_col, output_path=None):
 
     Args:
         df: DataFrame with predicted and ground truth scores
-        pred_col: Column name for predictions (e.g., 'tmvec2_score')
+        pred_col: Column name for predictions (e.g., 'foldseek_score')
         truth_col: Column name for ground truth (e.g., 'tmalign_score')
         output_path: Path to save figure (without extension), optional
     """
     # Reshape data for seaborn
     plot_df = pd.DataFrame({
         'TM-score': pd.concat([df[truth_col], df[pred_col]]),
-        'Method': ['TM-align (Ground Truth)'] * len(df) + ['TMvec-2 (Predicted)'] * len(df)
+        'Method': ['TM-align (Ground Truth)'] * len(df) + ['Foldseek (Predicted)'] * len(df)
     })
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -40,12 +40,12 @@ def plot_kde_comparison(df, pred_col, truth_col, output_path=None):
     sns.kdeplot(data=plot_df, x='TM-score', hue='Method', fill=True, alpha=0.5, ax=ax)
 
     # Add mean lines
-    for method, col in [('TM-align (Ground Truth)', truth_col), ('TMvec-2 (Predicted)', pred_col)]:
+    for method, col in [('TM-align (Ground Truth)', truth_col), ('Foldseek (Predicted)', pred_col)]:
         mean_val = df[col].mean()
         ax.axvline(mean_val, linestyle='--', linewidth=2,
                    label=f'{method.split()[0]} mean: {mean_val:.3f}')
 
-    ax.set_title('Distribution Comparison: TMvec-2 vs TM-align')
+    ax.set_title('Distribution Comparison: Foldseek vs TM-align')
     ax.legend()
     plt.tight_layout()
 
@@ -103,7 +103,7 @@ def plot_correlation_scatter(df, x_col, y_col, output_path=None):
     Args:
         df: DataFrame with scores
         x_col: X-axis column (e.g., 'tmalign_score')
-        y_col: Y-axis column (e.g., 'tmvec2_score')
+        y_col: Y-axis column (e.g., 'foldseek_score')
         output_path: Path to save figure (without extension), optional
 
     Returns:
@@ -215,42 +215,59 @@ if __name__ == "__main__":
     # Load actual results
     print("Loading CSV files...")
     df_tmalign = pd.read_csv('results/tmalign_similarities.csv')
-    df_tmvec2 = pd.read_csv('results/tmvec2_similarities.csv').head(100000)
+    df_foldseek = pd.read_csv('/scratch/akeluska/prot_distill_divide/benchmarking/results/foldseek_similarities.csv').head(100000)
 
     # Merge on sequence IDs
-    # Clean seq IDs for matching (remove range info from tmvec2 IDs)
-    df_tmvec2['seq1_clean'] = df_tmvec2['seq1_id'].str.replace(r'/\d+-\d+', '', regex=True)
-    df_tmvec2['seq2_clean'] = df_tmvec2['seq2_id'].str.replace(r'/\d+-\d+', '', regex=True)
+    # Clean seq IDs for matching (remove range info from foldseek IDs)
+    df_foldseek['seq1_clean'] = df_foldseek['seq1_id'].str.replace(r'/\d+-\d+', '', regex=True)
+    df_foldseek['seq2_clean'] = df_foldseek['seq2_id'].str.replace(r'/\d+-\d+', '', regex=True)
 
     df_merged = pd.merge(
         df_tmalign[['seq1_id', 'seq2_id', 'tm_score']],
-        df_tmvec2[['seq1_clean', 'seq2_clean', 'tm_score']],
+        df_foldseek[['seq1_clean', 'seq2_clean', 'tm_score']],
         left_on=['seq1_id', 'seq2_id'],
         right_on=['seq1_clean', 'seq2_clean'],
-        suffixes=('_tmalign', '_tmvec2')
+        suffixes=('_tmalign', '_foldseek')
     )
 
+    # Harmonize column names for plotting helpers
+    df_merged = df_merged.rename(columns={
+        'tm_score_tmalign': 'score_tmalign',
+        'tm_score_foldseek': 'score_foldseek'
+    })
+
     print(f"Merged {len(df_merged)} pairs\n")
+    summary = (
+        df_merged[['score_tmalign', 'score_foldseek']]
+        .describe()
+        .rename(columns={
+            'score_tmalign': 'tm_align',
+            'score_foldseek': 'foldseek'
+        })
+    )
+    print("Score summary (TM-align vs. Foldseek):")
+    print(summary.to_string(float_format=lambda x: f"{x:0.6f}"))
+    print()
 
     # Create timestamped output directory
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_dir = f'figures/tmvec2_{timestamp}'
+    output_dir = f'figures/foldseek_{timestamp}'
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     print(f"Saving to: {output_dir}/\n")
 
     # Plot 1: KDE
     print("1. KDE comparison")
-    fig1 = plot_kde_comparison(df_merged, 'score_tmvec2', 'score_tmalign',
+    fig1 = plot_kde_comparison(df_merged, 'score_foldseek', 'score_tmalign',
                                f'{output_dir}/kde_comparison')
 
     # Plot 2: Correlation
     print("2. Correlation scatter")
     fig2, stats = plot_correlation_scatter(df_merged, 'score_tmalign',
-                                          'score_tmvec2', f'{output_dir}/correlation')
+                                          'score_foldseek', f'{output_dir}/correlation')
 
     # Confusion Matrix
     print("3. Confusion matrix (threshold=0.5)")
-    conf_matrix = compute_confusion_matrix(df_merged, 'score_tmalign', 'score_tmvec2',
+    conf_matrix = compute_confusion_matrix(df_merged, 'score_tmalign', 'score_foldseek',
                                           threshold=0.5, output_path=f'{output_dir}/confusion_matrix')
 
     print(f"\nStats: R={stats['pearson_r']:.3f}, RMSE={stats['rmse']:.3f}, n={stats['n']}")

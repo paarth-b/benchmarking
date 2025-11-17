@@ -215,7 +215,14 @@ if __name__ == "__main__":
     # Load actual results
     print("Loading CSV files...")
     df_tmalign = pd.read_csv('results/tmalign_similarities.csv')
+    # Convert tm_score to float (handles scientific notation like 2.293E-01)
+    if 'tm_score' in df_tmalign.columns:
+        df_tmalign['tm_score'] = pd.to_numeric(df_tmalign['tm_score'], errors='coerce')
+    
     df_foldseek = pd.read_csv('/scratch/akeluska/prot_distill_divide/benchmarking/results/foldseek_similarities.csv').head(100000)
+    # Convert tm_score to float (handles scientific notation like 2.293E-01)
+    if 'tm_score' in df_foldseek.columns:
+        df_foldseek['tm_score'] = pd.to_numeric(df_foldseek['tm_score'], errors='coerce')
 
     # Merge on sequence IDs
     # Clean seq IDs for matching (remove range info from foldseek IDs)

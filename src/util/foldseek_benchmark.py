@@ -45,6 +45,7 @@ def run_foldseek_all_vs_all_search(structure_dir, output_prefix, threads=32):
 
     try:
         # Use easy-search with exhaustive search and TM-score output directly
+        # Set very permissive thresholds to get all pairs
         tsv_path = f"{output_prefix}.tsv"
         cmd_easy_search = [
             "foldseek", "easy-search",
@@ -52,7 +53,10 @@ def run_foldseek_all_vs_all_search(structure_dir, output_prefix, threads=32):
             tsv_path, tmp_dir,
             "--exhaustive-search", "1",  # Skip prefilter, perform all-vs-all alignment
             "--format-output", "query,target,alntmscore,qtmscore,ttmscore",
-            "--threads", str(threads)
+            "--threads", str(threads),
+            "-e", "1000.0",  # Very permissive E-value (default is 0.001)
+            "-c", "0.0",  # No coverage threshold (default filters by coverage)
+            "--max-seqs", "1000000"  # Very high limit
         ]
 
         print(f"Running easy-search: {' '.join(cmd_easy_search)}")

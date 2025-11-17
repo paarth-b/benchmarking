@@ -37,61 +37,32 @@ def extract_pdb_ids(pdb_files):
 
 
 def run_foldseek_all_vs_all_search(structure_dir, output_prefix, threads=32):
-    """Run Foldseek all-vs-all search using database approach."""
-    print("Running Foldseek all-vs-all search...")
+    """Run Foldseek all-vs-all search using easy-search with exhaustive mode."""
+    print("Running Foldseek all-vs-all search with exhaustive mode...")
 
     # Create temporary directory
     tmp_dir = tempfile.mkdtemp()
 
     try:
-        # Create database from structures
-        db_path = Path(tmp_dir) / "structures_db"
-        cmd_createdb = ["foldseek", "createdb", structure_dir, str(db_path)]
-        print(f"Creating database: {' '.join(cmd_createdb)}")
-        result = subprocess.run(cmd_createdb, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            print(f"Database creation failed:")
-            print(f"STDOUT: {result.stdout}")
-            print(f"STDERR: {result.stderr}")
-            raise RuntimeError("Database creation failed")
-
-        # Run all-vs-all search
-        aln_path = Path(tmp_dir) / "alignments"
-        cmd_search = [
-            "foldseek", "search",
-            str(db_path), str(db_path),
-            str(aln_path), tmp_dir,
-            "-a",  # include alignments
-            "--threads", str(threads),
-            "--max-seqs", "1000000",  # very high limit
-            "-e", "10.0"  # very permissive E-value
-        ]
-
-        print(f"Running search: {' '.join(cmd_search)}")
-        result = subprocess.run(cmd_search, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            print(f"Foldseek search failed:")
-            print(f"STDOUT: {result.stdout}")
-            print(f"STDERR: {result.stderr}")
-            raise RuntimeError("Foldseek search failed")
-
-        # Convert to TSV
+        # Use easy-search with exhaustive search and TM-score output directly
         tsv_path = f"{output_prefix}.tsv"
-        cmd_tsv = [
-            "foldseek", "createtsv",
-            str(db_path), str(db_path), str(aln_path), tsv_path
+        cmd_easy_search = [
+            "foldseek", "easy-search",
+            structure_dir, structure_dir,
+            tsv_path, tmp_dir,
+            "--exhaustive-search", "1",  # Skip prefilter, perform all-vs-all alignment
+            "--format-output", "query,target,alntmscore,qtmscore,ttmscore",
+            "--threads", str(threads)
         ]
 
-        print(f"Converting to TSV: {' '.join(cmd_tsv)}")
-        result = subprocess.run(cmd_tsv, capture_output=True, text=True)
+        print(f"Running easy-search: {' '.join(cmd_easy_search)}")
+        result = subprocess.run(cmd_easy_search, capture_output=True, text=True)
 
         if result.returncode != 0:
-            print(f"Foldseek createtsv failed:")
+            print(f"Foldseek easy-search failed:")
             print(f"STDOUT: {result.stdout}")
             print(f"STDERR: {result.stderr}")
-            raise RuntimeError("Foldseek createtsv failed")
+            raise RuntimeError("Foldseek easy-search failed")
 
         print("Foldseek all-vs-all search completed")
         return tsv_path
@@ -102,33 +73,39 @@ def run_foldseek_all_vs_all_search(structure_dir, output_prefix, threads=32):
 
 
 def parse_foldseek_results(tsv_file, pdb_ids):
-    """Parse Foldseek TSV results and extract pairwise TM-scores."""
+    """Parse Foldseek TSV results from easy-search and extract pairwise TM-scores."""
     print("Parsing Foldseek results...")
 
-    # Read the TSV file
+    # Read the TSV file (easy-search format: query, target, alntmscore, qtmscore, ttmscore)
     df = pd.read_csv(tsv_file, sep='\t', header=None,
-                     names=['query', 'target', 'fident', 'alnlen', 'mismatch', 'gapopen',
-                           'qstart', 'qend', 'tstart', 'tend', 'evalue', 'bits', 'alntmscore'])
+                     names=['query', 'target', 'alntmscore', 'qtmscore', 'ttmscore'])
 
     print(f"Loaded {len(df)} alignments")
 
-    # When using databases, query and target are indices (0, 1, 2, ...)
-    # The order should match the order that createdb processed the files
-    # Assuming pdb_ids is in the same order as the files were processed
+    # Create mapping from PDB basename to CATH ID
+    basename_to_cath = {}
+    for cath_id in pdb_ids:
+        # Extract the PDB part: "cath|4_4_0|107lA00" -> "107lA00"
+        pdb_part = cath_id.split('|')[-1]
+        basename_to_cath[pdb_part] = cath_id
 
     # Filter for our PDB IDs and create pairwise results
     pairs = []
     seen_pairs = set()
 
     for _, row in tqdm(df.iterrows(), total=len(df)):
-        query_idx = int(row['query'])
-        target_idx = int(row['target'])
-        tm_score = row['alntmscore']
+        query_path = row['query']
+        target_path = row['target']
+        tm_score = row['alntmscore']  # Use alignment-normalized TM-score
 
-        # Map indices to CATH IDs
-        if query_idx < len(pdb_ids) and target_idx < len(pdb_ids):
-            q_id = pdb_ids[query_idx]
-            t_id = pdb_ids[target_idx]
+        # Extract basename from path (e.g., "/path/to/107lA00.pdb" -> "107lA00")
+        q_basename = Path(query_path).stem
+        t_basename = Path(target_path).stem
+
+        # Map to CATH IDs
+        if q_basename in basename_to_cath and t_basename in basename_to_cath:
+            q_id = basename_to_cath[q_basename]
+            t_id = basename_to_cath[t_basename]
 
             # Skip self-comparisons and duplicates
             if q_id != t_id:

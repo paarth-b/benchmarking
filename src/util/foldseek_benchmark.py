@@ -54,7 +54,8 @@ def run_foldseek_all_vs_all_search(structure_dir, output_prefix, foldseek_bin, t
             "--exhaustive-search", "1",  # Skip prefilter, perform all-vs-all alignment
             "--format-output", "query,target,alntmscore",
             "--threads", str(threads),
-            "-e", "0.001",  # Default E-value threshold
+            "--gpu", "1",  # Enable GPU acceleration
+            "-e", "0.01",  # Default E-value threshold
             "-c", "0.0",  # No coverage threshold (default filters by coverage)
             "--max-seqs", "1000000"  # Very high limit
         ]

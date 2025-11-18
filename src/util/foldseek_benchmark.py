@@ -36,7 +36,7 @@ def extract_pdb_ids(pdb_files):
     return pdb_ids
 
 
-def run_foldseek_all_vs_all_search(structure_dir, output_prefix, threads=32):
+def run_foldseek_all_vs_all_search(structure_dir, output_prefix, foldseek_bin, threads=32):
     """Run Foldseek all-vs-all search using easy-search with exhaustive mode."""
     print("Running Foldseek all-vs-all search with exhaustive mode...")
 
@@ -48,13 +48,13 @@ def run_foldseek_all_vs_all_search(structure_dir, output_prefix, threads=32):
         # Set very permissive thresholds to get all pairs
         tsv_path = f"{output_prefix}.tsv"
         cmd_easy_search = [
-            "foldseek", "easy-search",
+            foldseek_bin, "easy-search",
             structure_dir, structure_dir,
             tsv_path, tmp_dir,
             "--exhaustive-search", "1",  # Skip prefilter, perform all-vs-all alignment
-            "--format-output", "query,target,alntmscore,qtmscore,ttmscore",
+            "--format-output", "query,target,alntmscore",
             "--threads", str(threads),
-            "-e", "1000.0",  # Very permissive E-value (default is 0.001)
+            "-e", "0.001",  # Default E-value threshold
             "-c", "0.0",  # No coverage threshold (default filters by coverage)
             "--max-seqs", "1000000"  # Very high limit
         ]
@@ -80,9 +80,9 @@ def parse_foldseek_results(tsv_file, pdb_ids):
     """Parse Foldseek TSV results from easy-search and extract pairwise TM-scores."""
     print("Parsing Foldseek results...")
 
-    # Read the TSV file (easy-search format: query, target, alntmscore, qtmscore, ttmscore)
+    # Read the TSV file (easy-search format: query, target, alntmscore)
     df = pd.read_csv(tsv_file, sep='\t', header=None,
-                     names=['query', 'target', 'alntmscore', 'qtmscore', 'ttmscore'])
+                     names=['query', 'target', 'alntmscore'])
 
     print(f"Loaded {len(df)} alignments")
 
@@ -132,7 +132,7 @@ def save_results(pairs, output_path):
 
     df = pd.DataFrame(pairs)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False)
+    df.to_csv(output_path, index=False, float_format='%.6f')
 
     print(f"Saved {len(pairs):,} pairwise predictions")
 
@@ -146,9 +146,6 @@ def main():
     parser.add_argument("--max-structures", type=int, help="Maximum number of structures to process")
 
     args = parser.parse_args()
-
-    # Set foldseek binary path
-    os.environ['PATH'] = f"{Path(args.foldseek_bin).parent}:{os.environ.get('PATH', '')}"
 
     print("=" * 80)
     print("Foldseek Structure Similarity Benchmark")
@@ -170,7 +167,7 @@ def main():
         output_prefix = Path(tmp_base) / "foldseek_results"
 
         # Run all-vs-all search using database approach
-        tsv_file = run_foldseek_all_vs_all_search(args.structure_dir, str(output_prefix), args.threads)
+        tsv_file = run_foldseek_all_vs_all_search(args.structure_dir, str(output_prefix), args.foldseek_bin, args.threads)
 
         # Parse results
         pairs = parse_foldseek_results(tsv_file, pdb_ids)

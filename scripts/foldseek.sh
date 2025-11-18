@@ -1,52 +1,50 @@
 #!/bin/bash
+#SBATCH --job-name=foldseek-bench
+#SBATCH --partition=ghx4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=72
+#SBATCH --gpus-per-node=1
+#SBATCH --mem=0
+#SBATCH --account=beut-dtai-gh
+#SBATCH --time=12:00:00
+#SBATCH --output=logs/%j/%x.out
+#SBATCH --error=logs/%j/%x.err
+#SBATCH --exclusive
 
-#SBATCH -A grp_qzhu44
-#SBATCH -N 1
-#SBATCH -c 32
-#SBATCH -t 1-00:00:00
-#SBATCH -p public
-#SBATCH --mem=64G
-#SBATCH -q public
-#SBATCH -o slurm_logs/slurm.%j.out
-#SBATCH -e slurm_logs/slurm.%j.err
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user="%u@asu.edu"
-#SBATCH --export=NONE
+set -e
 
-set -euo pipefail
-shopt -s nullglob
+mkdir -p logs/$SLURM_JOB_ID
+cd /u/paarthbatra/git/benchmarking
 
-WORKDIR=/scratch/akeluska/prot_distill_divide/benchmarking
-cd "${WORKDIR}"
-
-echo "Job ID: ${SLURM_JOB_ID:-local}"
-echo "Node: ${SLURMD_NODENAME:-$(hostname)}"
-echo "CPUs: ${SLURM_CPUS_PER_TASK:-32}"
-echo "GPU: $(command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi --query-gpu=name --format=csv,noheader | head -1 || echo 'CPU only')"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Node: $SLURMD_NODENAME"
+echo "CPUs: $SLURM_CPUS_PER_TASK"
 echo "Start: $(date)"
 echo ""
 
-export HYDRA_FULL_ERROR=1
-export HF_HOME=/scratch/akeluska/.cache/
+# Load override module from deltaAI
+module load python/miniforge3_pytorch/2.7.0
 
-module load mamba/latest
-source activate tmvec_distill
+FOLDSEEK_BIN=binaries/foldseek
+STRUCTURE_DIR=data/pdb/cath-s100-1k
+OUTPUT_FILE=results/foldseek_similarities.csv
+THREADS=$SLURM_CPUS_PER_TASK
 
-FOLDSEEK_BIN=${WORKDIR}/binaries/foldseek
-STRUCTURE_DIR=/scratch/akeluska/prot_distill_divide/data/pdb/cath-s100-1k
-OUTPUT_FILE=${WORKDIR}/results/foldseek_similarities.csv
-THREADS=${SLURM_CPUS_PER_TASK:-32}
+echo "Foldseek binary: $FOLDSEEK_BIN"
+echo "Structure dir: $STRUCTURE_DIR"
+echo "Output: $OUTPUT_FILE"
+echo ""
 
-echo "Foldseek binary: ${FOLDSEEK_BIN}"
-echo "Structure dir: ${STRUCTURE_DIR}"
-echo "Output: ${OUTPUT_FILE}"
+# Run Foldseek benchmark
+echo "Running Foldseek benchmark on CATH S100-1k..."
 echo ""
 
 python -m src.util.foldseek_benchmark \
-    --structure-dir "${STRUCTURE_DIR}" \
-    --foldseek-bin "${FOLDSEEK_BIN}" \
-    --output "${OUTPUT_FILE}" \
-    --threads "${THREADS}"
+    --structure-dir "$STRUCTURE_DIR" \
+    --foldseek-bin "$FOLDSEEK_BIN" \
+    --output "$OUTPUT_FILE" \
+    --threads "$THREADS"
 
 echo ""
 echo "=========================================="
@@ -55,4 +53,4 @@ echo "End: $(date)"
 echo "=========================================="
 echo ""
 echo "Results:"
-echo "  ${OUTPUT_FILE}"
+echo "  results/foldseek_similarities.csv"

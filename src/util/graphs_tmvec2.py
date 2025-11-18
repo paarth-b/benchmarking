@@ -240,17 +240,17 @@ if __name__ == "__main__":
 
     # Plot 1: KDE
     print("1. KDE comparison")
-    fig1 = plot_kde_comparison(df_merged, 'score_tmvec2', 'score_tmalign',
+    fig1 = plot_kde_comparison(df_merged, 'tm_score_tmvec2', 'tm_score_tmalign',
                                f'{output_dir}/kde_comparison')
 
     # Plot 2: Correlation
     print("2. Correlation scatter")
-    fig2, stats = plot_correlation_scatter(df_merged, 'score_tmalign',
-                                          'score_tmvec2', f'{output_dir}/correlation')
+    fig2, stats = plot_correlation_scatter(df_merged, 'tm_score_tmalign',
+                                          'tm_score_tmvec2', f'{output_dir}/correlation')
 
     # Confusion Matrix
     print("3. Confusion matrix (threshold=0.5)")
-    conf_matrix = compute_confusion_matrix(df_merged, 'score_tmalign', 'score_tmvec2',
+    conf_matrix = compute_confusion_matrix(df_merged, 'tm_score_tmalign', 'tm_score_tmvec2',
                                           threshold=0.5, output_path=f'{output_dir}/confusion_matrix')
 
     print(f"\nStats: R={stats['pearson_r']:.3f}, RMSE={stats['rmse']:.3f}, n={stats['n']}")

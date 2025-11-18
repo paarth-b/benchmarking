@@ -28,10 +28,13 @@ def plot_kde_comparison(df, pred_col, truth_col, output_path=None):
         truth_col: Column name for ground truth (e.g., 'tmalign_score')
         output_path: Path to save figure (without extension), optional
     """
+    # Drop NaN values before reshaping
+    clean_df = df[[pred_col, truth_col]].dropna()
+
     # Reshape data for seaborn
     plot_df = pd.DataFrame({
-        'TM-score': pd.concat([df[truth_col], df[pred_col]]),
-        'Method': ['TM-align (Ground Truth)'] * len(df) + ['Foldseek (Predicted)'] * len(df)
+        'TM-score': pd.concat([clean_df[truth_col], clean_df[pred_col]]),
+        'Method': ['TM-align (Ground Truth)'] * len(clean_df) + ['Foldseek (Predicted)'] * len(clean_df)
     })
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -41,7 +44,7 @@ def plot_kde_comparison(df, pred_col, truth_col, output_path=None):
 
     # Add mean lines
     for method, col in [('TM-align (Ground Truth)', truth_col), ('Foldseek (Predicted)', pred_col)]:
-        mean_val = df[col].mean()
+        mean_val = clean_df[col].mean()
         ax.axvline(mean_val, linestyle='--', linewidth=2,
                    label=f'{method.split()[0]} mean: {mean_val:.3f}')
 
@@ -218,22 +221,26 @@ if __name__ == "__main__":
     # Convert tm_score to float (handles scientific notation like 2.293E-01)
     if 'tm_score' in df_tmalign.columns:
         df_tmalign['tm_score'] = pd.to_numeric(df_tmalign['tm_score'], errors='coerce')
-    
-    df_foldseek = pd.read_csv('/scratch/akeluska/prot_distill_divide/benchmarking/results/foldseek_similarities.csv').head(100000)
+
+    df_foldseek = pd.read_csv('results/foldseek_similarities.csv')
     # Convert tm_score to float (handles scientific notation like 2.293E-01)
     if 'tm_score' in df_foldseek.columns:
         df_foldseek['tm_score'] = pd.to_numeric(df_foldseek['tm_score'], errors='coerce')
 
     # Merge on sequence IDs
-    # Clean seq IDs for matching (remove range info from foldseek IDs)
-    df_foldseek['seq1_clean'] = df_foldseek['seq1_id'].str.replace(r'/\d+-\d+', '', regex=True)
-    df_foldseek['seq2_clean'] = df_foldseek['seq2_id'].str.replace(r'/\d+-\d+', '', regex=True)
+    print(f"TM-align pairs: {len(df_tmalign)}")
+    print(f"Foldseek pairs: {len(df_foldseek)}")
+
+    # Remove duplicates from both dataframes before merging
+    df_tmalign = df_tmalign.drop_duplicates(subset=['seq1_id', 'seq2_id'])
+    df_foldseek = df_foldseek.drop_duplicates(subset=['seq1_id', 'seq2_id'])
+
+    print(f"After dedup - TM-align: {len(df_tmalign)}, Foldseek: {len(df_foldseek)}")
 
     df_merged = pd.merge(
         df_tmalign[['seq1_id', 'seq2_id', 'tm_score']],
-        df_foldseek[['seq1_clean', 'seq2_clean', 'tm_score']],
-        left_on=['seq1_id', 'seq2_id'],
-        right_on=['seq1_clean', 'seq2_clean'],
+        df_foldseek[['seq1_id', 'seq2_id', 'tm_score']],
+        on=['seq1_id', 'seq2_id'],
         suffixes=('_tmalign', '_foldseek')
     )
 

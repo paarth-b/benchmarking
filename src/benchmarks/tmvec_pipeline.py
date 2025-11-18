@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-TMvec-2: Generate embeddings and compute TM-score predictions for CATH S100.
+Common pipeline for TMvec benchmarking.
 """
 
 from pathlib import Path
@@ -8,9 +8,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn.functional as F
+from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
-from lobster.model import LobsterPMLM
 
 from ..model.tmvec_model import TMScorePredictor
 
@@ -47,56 +46,18 @@ def load_sequences(fasta_path, max_sequences=5000):
     return seq_ids, sequences
 
 
-def generate_lobster_embeddings(sequences, batch_size=32, max_length=512, device='cuda'):
-    """Generate LOBSTER embeddings for protein sequences."""
-    print("Generating LOBSTER embeddings...")
-    model = LobsterPMLM("asalam91/lobster_24M")
-    tokenizer = model.tokenizer
-    model.to(device)
-    model.eval()
-
-    all_embeddings = []
-
-    with torch.no_grad():
-        for i in tqdm(range(0, len(sequences), batch_size)):
-            batch_seqs = sequences[i:i + batch_size]
-
-            encoded = tokenizer(
-                batch_seqs,
-                padding=True,
-                truncation=True,
-                max_length=max_length,
-                return_tensors='pt'
-            )
-
-            input_ids = encoded['input_ids'].to(device)
-            attention_mask = encoded['attention_mask'].to(device)
-
-            outputs = model.model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                output_hidden_states=True
-            )
-            embeddings = outputs.hidden_states[-1]
-
-            all_embeddings.append(embeddings.cpu())
-
-    print(f"Generated LOBSTER embeddings: {all_embeddings[0].shape}")
-    return all_embeddings
-
-
-def generate_tmvec_embeddings(lobster_embeddings, model_path, device='cuda'):
-    """Transform LOBSTER embeddings into structure-aware embeddings."""
-    print("Loading TMvec-2 model...")
+def generate_tmvec_embeddings(base_embeddings, model_path, device='cuda'):
+    """Transform base embeddings into structure-aware embeddings."""
+    print("Loading TMvec model...")
     model = TMScorePredictor.load_from_checkpoint(model_path, strict=False)
     model.to(device)
     model.eval()
 
-    print("Generating TMvec-2 embeddings...")
+    print("Generating TMvec embeddings...")
     all_tmvec_embeddings = []
 
     with torch.no_grad():
-        for batch_embeddings in tqdm(lobster_embeddings):
+        for batch_embeddings in tqdm(base_embeddings):
             batch_embeddings = batch_embeddings.to(device)
             batch_size, seq_len = batch_embeddings.shape[:2]
 
@@ -106,21 +67,35 @@ def generate_tmvec_embeddings(lobster_embeddings, model_path, device='cuda'):
             all_tmvec_embeddings.append(tmvec_emb.cpu().numpy())
 
     tmvec_embeddings = np.concatenate(all_tmvec_embeddings, axis=0)
-    print(f"Generated TMvec-2 embeddings: {tmvec_embeddings.shape}")
+    print(f"Generated TMvec embeddings: {tmvec_embeddings.shape}")
 
     return tmvec_embeddings
 
 
-def calculate_tm_scores(embeddings):
-    """Calculate pairwise TM-scores via cosine similarity."""
-    print("Calculating pairwise TM-scores...")
+def calculate_tm_scores(embeddings, n_neighbors=10):
+    """Calculate pairwise TM-scores using KNN."""
+    print(f"Calculating pairwise TM-scores with KNN (k={n_neighbors})...")
 
-    embeddings_tensor = torch.from_numpy(embeddings)
-    embeddings_norm = F.normalize(embeddings_tensor, p=2, dim=1)
+    knn = NearestNeighbors(n_neighbors=min(n_neighbors + 1, len(embeddings)),
+                           metric='cosine',
+                           algorithm='brute',
+                           n_jobs=-1)
+    knn.fit(embeddings)
 
-    tm_score_matrix = torch.mm(embeddings_norm, embeddings_norm.t()).numpy()
+    distances, indices = knn.kneighbors(embeddings)
 
-    print(f"Computed {len(embeddings)}x{len(embeddings)} TM-score matrix")
+    n = len(embeddings)
+    tm_score_matrix = np.zeros((n, n))
+
+    for i in range(n):
+        for j_idx, j in enumerate(indices[i]):
+            if i != j:
+                tm_score_matrix[i, j] = 1 - distances[i, j_idx]
+
+    tm_score_matrix = (tm_score_matrix + tm_score_matrix.T) / 2
+    np.fill_diagonal(tm_score_matrix, 1.0)
+
+    print(f"Computed {n}x{n} TM-score matrix")
     print(f"Mean: {tm_score_matrix.mean():.4f}, Std: {tm_score_matrix.std():.4f}")
 
     return tm_score_matrix
@@ -145,23 +120,17 @@ def save_results(seq_ids, tm_score_matrix, output_path):
     print(f"Saved {len(pairs):,} pairwise predictions")
 
 
-def main():
-    fasta_path = "data/fasta/cath-domain-seqs-S100-1k.fa"
-    checkpoint_path = "models/tmvec-2/last.ckpt"
-    output_path = "results/tmvec2_similarities.csv"
-
-    max_sequences = 1000
-    batch_size = 32
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+def run_tmvec_pipeline(embedding_generator, fasta_path, checkpoint_path, output_path,
+                       max_sequences=1000, batch_size=32, device='cuda'):
+    """Run complete TMvec benchmarking pipeline."""
     print("=" * 80)
-    print("TMvec-2 TM-Score Prediction")
+    print("TMvec TM-Score Prediction")
     print(f"Device: {device}, Max sequences: {max_sequences}")
     print("=" * 80)
 
     seq_ids, sequences = load_sequences(fasta_path, max_sequences)
-    lobster_embeddings = generate_lobster_embeddings(sequences, batch_size, device=device)
-    tmvec_embeddings = generate_tmvec_embeddings(lobster_embeddings, checkpoint_path, device)
+    base_embeddings = embedding_generator.generate(sequences, batch_size, device=device)
+    tmvec_embeddings = generate_tmvec_embeddings(base_embeddings, checkpoint_path, device)
     tm_score_matrix = calculate_tm_scores(tmvec_embeddings)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -170,7 +139,3 @@ def main():
     print("=" * 80)
     print("Complete!")
     print("=" * 80)
-
-
-if __name__ == "__main__":
-    main()

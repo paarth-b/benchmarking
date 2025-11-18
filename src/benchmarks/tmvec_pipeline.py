@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.neighbors import NearestNeighbors
+import torch.nn.functional as F
 from tqdm import tqdm
 
 from ..model.tmvec_model import TMScorePredictor
@@ -72,30 +72,16 @@ def generate_tmvec_embeddings(base_embeddings, model_path, device='cuda'):
     return tmvec_embeddings
 
 
-def calculate_tm_scores(embeddings, n_neighbors=10):
-    """Calculate pairwise TM-scores using KNN."""
-    print(f"Calculating pairwise TM-scores with KNN (k={n_neighbors})...")
+def calculate_tm_scores(embeddings):
+    """Calculate pairwise TM-scores via cosine similarity."""
+    print("Calculating pairwise TM-scores...")
 
-    knn = NearestNeighbors(n_neighbors=min(n_neighbors + 1, len(embeddings)),
-                           metric='cosine',
-                           algorithm='brute',
-                           n_jobs=-1)
-    knn.fit(embeddings)
+    embeddings_tensor = torch.from_numpy(embeddings)
+    embeddings_norm = F.normalize(embeddings_tensor, p=2, dim=1)
 
-    distances, indices = knn.kneighbors(embeddings)
+    tm_score_matrix = torch.mm(embeddings_norm, embeddings_norm.t()).numpy()
 
-    n = len(embeddings)
-    tm_score_matrix = np.zeros((n, n))
-
-    for i in range(n):
-        for j_idx, j in enumerate(indices[i]):
-            if i != j:
-                tm_score_matrix[i, j] = 1 - distances[i, j_idx]
-
-    tm_score_matrix = (tm_score_matrix + tm_score_matrix.T) / 2
-    np.fill_diagonal(tm_score_matrix, 1.0)
-
-    print(f"Computed {n}x{n} TM-score matrix")
+    print(f"Computed {len(embeddings)}x{len(embeddings)} TM-score matrix")
     print(f"Mean: {tm_score_matrix.mean():.4f}, Std: {tm_score_matrix.std():.4f}")
 
     return tm_score_matrix

@@ -12,37 +12,25 @@ from scipy import stats
 from pathlib import Path
 
 
-sns.set_theme(style="whitegrid", context="paper", palette="rocket")
+sns.set_theme(style="whitegrid", context="paper")
 plt.rcParams['savefig.dpi'] = 300
 
 
 def plot_kde_comparison(df, pred_col, truth_col, method_name, output_path=None):
     """
     Create KDE plot comparing predicted scores to ground truth.
-
-    Args:
-        df: DataFrame with predicted and ground truth scores
-        pred_col: Column name for predictions
-        truth_col: Column name for ground truth
-        method_name: Name of prediction method for labels
-        output_path: Path to save figure (without extension), optional
     """
     plot_df = pd.DataFrame({
         'TM-score': pd.concat([df[truth_col], df[pred_col]]),
-        'Method': ['TM-align (Ground Truth)'] * len(df) + [f'{method_name} (Predicted)'] * len(df)
+        'Method': ['Ground Truth'] * len(df) + ['Predicted'] * len(df)
     })
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-
+    fig, ax = plt.subplots(figsize=(8, 5))
     sns.kdeplot(data=plot_df, x='TM-score', hue='Method', fill=True, alpha=0.5, ax=ax)
 
-    for method, col in [('TM-align (Ground Truth)', truth_col), (f'{method_name} (Predicted)', pred_col)]:
-        mean_val = df[col].mean()
-        ax.axvline(mean_val, linestyle='--', linewidth=2,
-                   label=f'{method.split()[0]} mean: {mean_val:.3f}')
-
-    ax.set_title(f'Distribution Comparison: {method_name} vs TM-align')
-    ax.legend()
+    ax.set_xlabel('TM-score')
+    ax.set_ylabel('Density')
+    ax.set_title(f'{method_name} vs TM-align')
     plt.tight_layout()
 
     if output_path:
@@ -55,17 +43,7 @@ def plot_kde_comparison(df, pred_col, truth_col, method_name, output_path=None):
 
 def plot_density_contour(df, x_col, y_col, method_name, output_path=None):
     """
-    Create density contour plot with Pearson correlation analysis.
-
-    Args:
-        df: DataFrame with scores
-        x_col: X-axis column (ground truth)
-        y_col: Y-axis column (predictions)
-        method_name: Name of prediction method for labels
-        output_path: Path to save figure (without extension), optional
-
-    Returns:
-        Tuple of (figure, statistics dict)
+    Create density hexbin plot with correlation statistics.
     """
     plot_df = df[[x_col, y_col]].dropna()
 
@@ -81,50 +59,34 @@ def plot_density_contour(df, x_col, y_col, method_name, output_path=None):
         'n': len(plot_df)
     }
 
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(6, 6))
 
-    sns.kdeplot(
-        data=plot_df,
-        x=x_col,
-        y=y_col,
-        fill=True,
+    hexbin = ax.hexbin(
+        plot_df[x_col],
+        plot_df[y_col],
+        gridsize=50,
         cmap='rocket',
-        levels=10,
-        thresh=0.05,
-        ax=ax
+        mincnt=1,
+        edgecolors='none'
     )
 
-    sns.scatterplot(
-        data=plot_df,
-        x=x_col,
-        y=y_col,
-        alpha=0.3,
-        s=10,
-        color='white',
-        edgecolor='none',
-        ax=ax
-    )
+    lims = [0, 1]
+    ax.plot(lims, lims, 'k--', alpha=0.7, linewidth=1, zorder=10)
 
-    lims = [
-        min(ax.get_xlim()[0], ax.get_ylim()[0]),
-        max(ax.get_xlim()[1], ax.get_ylim()[1])
-    ]
-    ax.plot(lims, lims, 'w--', alpha=0.8, linewidth=2, label='y=x')
+    ax.text(0.75, 0.05, f'r = {pearson_r:.3f}',
+            transform=ax.transAxes,
+            fontsize=11,
+            verticalalignment='bottom')
 
-    stats_text = (f'Pearson R = {pearson_r:.3f}\n'
-                  f'p-value = {pearson_p:.2e}\n'
-                  f'RMSE = {rmse:.3f}\n'
-                  f'MAE = {mae:.3f}\n'
-                  f'n = {len(plot_df):,}')
+    ax.set_xlabel('TM-Score')
+    ax.set_ylabel(f'Predicted TM-Score')
+    ax.set_xlim(lims)
+    ax.set_ylim(lims)
+    ax.set_aspect('equal')
 
-    ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
-            verticalalignment='top',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
+    cbar = plt.colorbar(hexbin, ax=ax)
+    cbar.set_label('count', rotation=270, labelpad=15)
 
-    ax.set_xlabel('TM-align Score (Ground Truth)')
-    ax.set_ylabel(f'{method_name} Score (Predicted)')
-    ax.set_title(f'Correlation: {method_name} vs TM-align')
-    ax.legend()
     plt.tight_layout()
 
     if output_path:
@@ -138,16 +100,6 @@ def plot_density_contour(df, x_col, y_col, method_name, output_path=None):
 def plot_confusion_matrix(df, truth_col, pred_col, threshold=0.5, output_path=None):
     """
     Create confusion matrix heatmap for binary classification.
-
-    Args:
-        df: DataFrame with predicted and ground truth scores
-        truth_col: Column name for ground truth scores
-        pred_col: Column name for predicted scores
-        threshold: TM-score threshold for classification (default: 0.5)
-        output_path: Path to save figure (without extension), optional
-
-    Returns:
-        Tuple of (figure, statistics DataFrame)
     """
     plot_df = df[[truth_col, pred_col]].dropna()
 
@@ -166,13 +118,13 @@ def plot_confusion_matrix(df, truth_col, pred_col, threshold=0.5, output_path=No
 
     confusion_matrix = np.array([[tn, fp], [fn, tp]])
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(7, 6))
 
     sns.heatmap(
         confusion_matrix,
         annot=True,
         fmt='d',
-        cmap='rocket_r',
+        cmap='Blues',
         xticklabels=['Negative', 'Positive'],
         yticklabels=['Negative', 'Positive'],
         cbar_kws={'label': 'Count'},
@@ -182,16 +134,6 @@ def plot_confusion_matrix(df, truth_col, pred_col, threshold=0.5, output_path=No
     ax.set_xlabel('Predicted')
     ax.set_ylabel('True')
     ax.set_title(f'Confusion Matrix (threshold={threshold})')
-
-    metrics_text = (f'Accuracy: {accuracy:.3f}\n'
-                   f'Precision: {precision:.3f}\n'
-                   f'Recall: {recall:.3f}\n'
-                   f'F1-Score: {f1:.3f}')
-
-    ax.text(1.4, 0.5, metrics_text, transform=ax.transAxes,
-            verticalalignment='center',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
-
     plt.tight_layout()
 
     statistics = pd.DataFrame({
@@ -212,15 +154,8 @@ def plot_confusion_matrix(df, truth_col, pred_col, threshold=0.5, output_path=No
 def plot_runtime_comparison(df, x_col, method_col, runtime_col, output_path=None):
     """
     Create line plot comparing runtimes of different methods.
-
-    Args:
-        df: DataFrame with runtime data
-        x_col: X-axis column (e.g., 'sequence_length')
-        method_col: Column identifying methods
-        runtime_col: Runtime column (in seconds)
-        output_path: Path to save figure (without extension), optional
     """
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(8, 5))
 
     sns.lineplot(
         data=df,
@@ -228,15 +163,13 @@ def plot_runtime_comparison(df, x_col, method_col, runtime_col, output_path=None
         y=runtime_col,
         hue=method_col,
         marker='o',
-        markersize=8,
-        linewidth=2,
         ax=ax
     )
 
     ax.set_yscale('log')
     ax.set_xlabel(x_col.replace('_', ' ').title())
     ax.set_ylabel('Runtime (seconds, log scale)')
-    ax.set_title('Runtime Comparison Across Methods')
+    ax.set_title('Runtime Comparison')
     plt.tight_layout()
 
     if output_path:

@@ -30,7 +30,7 @@ METHOD_CONFIG = {
     },
     'student': {
         'name': 'TMvec-Student',
-        'results_file': 'results/student_similarities.csv',
+        'results_file': 'results/tmvec_student_similarities.csv',
         'clean_ids': True
     },
     'foldseek': {
@@ -95,7 +95,8 @@ def generate_all_plots(method_key, output_dir=None, threshold=0.5):
 
     if output_dir is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_dir = f'figures/{method_key}_{timestamp}'
+        folder_name = 'tmvec_student' if method_key == 'student' else method_key
+        output_dir = f'figures/{folder_name}_{timestamp}'
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     print(f"\nSaving to: {output_dir}/\n")
@@ -146,8 +147,10 @@ def tmvec1(output_dir=None, threshold=0.5):
     generate_all_plots('tmvec1', output_dir, threshold)
 
 
-def tmvec2(output_dir=None, threshold=0.5):
+def tmvec2(output_dir=None, threshold=None):
     """Generate plots for TMvec-2."""
+    if threshold is None:
+        threshold = 0.6
     generate_all_plots('tmvec2', output_dir, threshold)
 
 
@@ -186,8 +189,8 @@ Examples:
     parser.add_argument(
         '--threshold',
         type=float,
-        default=0.5,
-        help='Classification threshold for confusion matrix (default: 0.5)'
+        default=None,
+        help='Classification threshold for confusion matrix (default: 0.5, tmvec2: 0.6)'
     )
 
     args = parser.parse_args()
@@ -199,7 +202,8 @@ Examples:
         'foldseek': foldseek
     }
 
-    method_funcs[args.method](args.output_dir, args.threshold)
+    threshold = args.threshold if args.threshold is not None else (0.6 if args.method == 'tmvec2' else 0.5)
+    method_funcs[args.method](args.output_dir, threshold)
 
 
 if __name__ == "__main__":

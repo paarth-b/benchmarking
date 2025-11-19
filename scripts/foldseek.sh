@@ -40,7 +40,7 @@ echo ""
 echo "Running Foldseek benchmark on CATH S100-1k..."
 echo ""
 
-python -m src.util.foldseek_benchmark \
+python -m src.benchmarks.foldseek_benchmark \
     --structure-dir "$STRUCTURE_DIR" \
     --foldseek-bin "$FOLDSEEK_BIN" \
     --output "$OUTPUT_FILE" \

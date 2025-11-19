@@ -35,7 +35,7 @@ echo ""
 echo "Running TMalign benchmark on CATH S100-1k..."
 echo ""
 
-python src/util/tmalign_benchmark.py
+python -m src.benchmarks.tmalign_benchmark
 
 echo ""
 echo "=========================================="

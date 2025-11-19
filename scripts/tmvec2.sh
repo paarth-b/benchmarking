@@ -39,7 +39,7 @@ echo ""
 echo "Running TM-Vec 2 predictions on CATH S100..."
 echo ""
 
-python -m src.util.tmvec_2
+python -m src.benchmarks.tmvec_2
 
 echo ""
 echo "=========================================="

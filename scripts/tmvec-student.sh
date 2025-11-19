@@ -49,7 +49,7 @@ echo ""
 echo "Running TM-Vec Student predictions on CATH S100..."
 echo ""
 
-python -m src.util.tmvec_student \
+python -m src.benchmarks.tmvec_student \
     --fasta "${FASTA_FILE}" \
     --checkpoint "${STUDENT_CHECKPOINT}" \
     --output "${OUTPUT_FILE}" \

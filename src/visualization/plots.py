@@ -64,7 +64,7 @@ def plot_density_contour(df, x_col, y_col, method_name, output_path=None):
     hexbin = ax.hexbin(
         plot_df[x_col],
         plot_df[y_col],
-        gridsize=50,
+        gridsize=80,
         cmap='rocket',
         mincnt=1,
         edgecolors='none'

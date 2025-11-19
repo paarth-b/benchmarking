@@ -55,7 +55,7 @@ def run_foldseek_all_vs_all_search(structure_dir, output_prefix, foldseek_bin, t
             "--format-output", "query,target,alntmscore",
             "--threads", str(threads),
             "--gpu", "1",  # Enable GPU acceleration
-            "-e", "0.01",  # Default E-value threshold
+            "-e", "10",  # Default Foldseek E-value
             "-c", "0.0",  # No coverage threshold (default filters by coverage)
             "--max-seqs", "1000000"  # Very high limit
         ]

@@ -26,7 +26,7 @@ def plot_kde_comparison(df, pred_col, truth_col, method_name, output_path=None):
     })
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    sns.kdeplot(data=plot_df, x='TM-score', hue='Method', fill=True, alpha=0.5, ax=ax)
+    sns.kdeplot(data=plot_df, x='TM-score', hue='Method', fill=True, ax=ax)
 
     ax.set_xlabel('TM-score')
     ax.set_ylabel('Density')
@@ -80,6 +80,7 @@ def plot_density_contour(df, x_col, y_col, method_name, output_path=None):
 
     ax.set_xlabel('TM-Score')
     ax.set_ylabel(f'Predicted TM-Score')
+    ax.set_title(f'{method_name} vs. Ground Truth')
     ax.set_xlim(lims)
     ax.set_ylim(lims)
     ax.set_aspect('equal')
@@ -124,7 +125,7 @@ def plot_confusion_matrix(df, truth_col, pred_col, threshold=0.5, output_path=No
         confusion_matrix,
         annot=True,
         fmt='d',
-        cmap='Blues',
+        cmap='rocket',
         xticklabels=['Negative', 'Positive'],
         yticklabels=['Negative', 'Positive'],
         cbar_kws={'label': 'Count'},

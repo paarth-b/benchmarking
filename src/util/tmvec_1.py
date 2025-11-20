@@ -176,7 +176,8 @@ def save_results(seq_ids, tm_score_matrix, output_path):
 
 
 def main():
-    fasta_path = "/scratch/akeluska/prot_distill_divide/data/fasta/cath-domain-seqs-S100-1k.fa"
+    fasta_path = "data/cath-domain-seqs-S100-1k.fa"
+    # these two should be downloaded from https://figshare.com/s/e414d6a52fd471d86d69
     checkpoint_path = "/scratch/akeluska/tm-bench/tmvec_1_models/tm_vec_cath_model_large.ckpt"
     config_path = "/scratch/akeluska/tm-bench/tmvec_1_models/tm_vec_cath_model_large_params.json"
     output_path = "results/tmvec1_similarities.csv"

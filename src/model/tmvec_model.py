@@ -38,6 +38,7 @@ class TMVecConfig:
         restart_mult: float = 1.0,
         # Training
         gradient_clip_val: float = 1.0,
+        **extra,
     ):
         # Architecture
         self.d_model = d_model
@@ -65,6 +66,10 @@ class TMVecConfig:
 
         # Training
         self.gradient_clip_val = gradient_clip_val
+
+        if extra:
+            extra_keys = ", ".join(sorted(extra.keys()))
+            print(f"Warning: Ignoring unused config keys: {extra_keys}")
 
 
 class TMScorePredictor(pl.LightningModule):

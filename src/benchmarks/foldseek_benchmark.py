@@ -135,8 +135,8 @@ def save_results(pairs, output_path):
 
     df = pd.DataFrame(pairs)
 
-    # Format e-value column in .3g scientific notation
-    df['evalue'] = df['evalue'].apply(lambda x: f'{x:.3g}')
+    # Format e-value column to always use scientific notation with 3 significant figures
+    df['evalue'] = df['evalue'].apply(lambda x: f'{x:.2e}')
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_path, index=False, float_format='%.6f')

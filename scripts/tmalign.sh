@@ -1,24 +1,21 @@
 #!/bin/bash
 #SBATCH --job-name=tmalign-bench
-#SBATCH --partition=ghx4              # CUSTOMIZE: your partition
+#SBATCH --partition=ghx4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=72            # CUSTOMIZE: adjust as needed
+#SBATCH --cpus-per-task=72
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=0
-#SBATCH --account=beut-dtai-gh        # CUSTOMIZE: your account
-#SBATCH --time=24:00:00               # CUSTOMIZE: adjust as needed
+#SBATCH --account=beut-dtai-gh
+#SBATCH --time=24:00:00
 #SBATCH --output=logs/%j/%x.out
 #SBATCH --error=logs/%j/%x.err
 #SBATCH --exclusive
 
 set -e
 
-# Get the repository root directory (parent of scripts directory)
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
-
 mkdir -p logs/$SLURM_JOB_ID
+cd /u/paarthbatra/git/benchmarking
 
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
@@ -26,9 +23,8 @@ echo "CPUs: $SLURM_CPUS_PER_TASK"
 echo "Start: $(date)"
 echo ""
 
-# CUSTOMIZE: Load your cluster's Python/PyTorch module or activate virtual environment
-module load python/miniforge3_pytorch/2.7.0  # Replace with your module
-# Alternatively: source /path/to/your/venv/bin/activate
+# Load override module from deltaAI
+module load python/miniforge3_pytorch/2.7.0
 
 echo "TMalign binary: models/tmalign/TMalign"
 echo "FASTA: data/fasta/cath-domain-seqs-S100-1k.fa (1000 sequences)"

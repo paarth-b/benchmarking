@@ -52,7 +52,7 @@ def run_foldseek_all_vs_all_search(structure_dir, output_prefix, foldseek_bin, t
             structure_dir, structure_dir,
             tsv_path, tmp_dir,
             "--exhaustive-search", "1",  # Skip prefilter, perform all-vs-all alignment
-            "--format-output", "query,target,alntmscore",
+            "--format-output", "query,target,alntmscore,evalue",
             "--threads", str(threads),
             "--gpu", "1",  # Enable GPU acceleration
             "-e", "10",  # Default Foldseek E-value
@@ -81,9 +81,9 @@ def parse_foldseek_results(tsv_file, pdb_ids):
     """Parse Foldseek TSV results from easy-search and extract pairwise TM-scores."""
     print("Parsing Foldseek results...")
 
-    # Read the TSV file (easy-search format: query, target, alntmscore)
+    # Read the TSV file (easy-search format: query, target, alntmscore, evalue)
     df = pd.read_csv(tsv_file, sep='\t', header=None,
-                     names=['query', 'target', 'alntmscore'])
+                     names=['query', 'target', 'alntmscore', 'evalue'])
 
     print(f"Loaded {len(df)} alignments")
 
@@ -102,6 +102,7 @@ def parse_foldseek_results(tsv_file, pdb_ids):
         query_path = row['query']
         target_path = row['target']
         tm_score = row['alntmscore']  # Use alignment-normalized TM-score
+        evalue = row['evalue']
 
         # Extract basename from path (e.g., "/path/to/107lA00.pdb" -> "107lA00")
         q_basename = Path(query_path).stem
@@ -120,7 +121,8 @@ def parse_foldseek_results(tsv_file, pdb_ids):
                     pairs.append({
                         'seq1_id': q_id,
                         'seq2_id': t_id,
-                        'tm_score': tm_score
+                        'tm_score': tm_score,
+                        'evalue': evalue
                     })
 
     print(f"Extracted {len(pairs)} unique pairwise comparisons")

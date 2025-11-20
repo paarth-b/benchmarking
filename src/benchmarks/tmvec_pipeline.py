@@ -120,7 +120,7 @@ def calculate_evalue(tm_score, len1, len2):
 
 
 def save_results(seq_ids, tm_score_matrix, output_path, sequence_lengths=None, evalue_threshold=None):
-    """Save TM-score matrix as pairwise CSV with optional e-value filtering."""
+    """Save TM-score matrix as pairwise CSV."""
     print(f"Saving results to {output_path}...")
 
     pairs = []
@@ -134,23 +134,12 @@ def save_results(seq_ids, tm_score_matrix, output_path, sequence_lengths=None, e
                 'tm_score': tm_score
             }
 
-            if sequence_lengths is not None:
-                len1 = sequence_lengths[seq_ids[i]]
-                len2 = sequence_lengths[seq_ids[j]]
-                evalue = calculate_evalue(tm_score, len1, len2)
-                pair['evalue'] = evalue
-
-                if evalue_threshold is not None and evalue > evalue_threshold:
-                    continue
-
             pairs.append(pair)
 
     df = pd.DataFrame(pairs)
     df.to_csv(output_path, index=False)
 
     print(f"Saved {len(pairs):,} pairwise predictions")
-    if evalue_threshold is not None:
-        print(f"Filtered to e-value <= {evalue_threshold}")
 
 
 def run_tmvec_pipeline(embedding_generator, fasta_path, checkpoint_path, output_path,
@@ -159,8 +148,6 @@ def run_tmvec_pipeline(embedding_generator, fasta_path, checkpoint_path, output_
     print("=" * 80)
     print("TMvec TM-Score Prediction")
     print(f"Device: {device}, Max sequences: {max_sequences}")
-    if evalue_threshold is not None:
-        print(f"E-value threshold: {evalue_threshold}")
     print("=" * 80)
 
     seq_ids, sequences = load_sequences(fasta_path, max_sequences)

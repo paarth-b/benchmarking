@@ -5,10 +5,23 @@ Uses Lobster embeddings as input.
 """
 
 import argparse
+import random
+import numpy as np
 import torch
 
 from .embedding_generators import LobsterEmbeddingGenerator
 from .tmvec_pipeline import run_tmvec_pipeline
+
+
+def set_seed(seed):
+    """Set random seed for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # Make PyTorch operations deterministic
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def main():
@@ -20,8 +33,13 @@ def main():
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--evalue-threshold", type=float, default=10, help="E-value threshold for filtering pairs")
     parser.add_argument("--device", default=None, help="Device (cuda/cpu)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
 
     args = parser.parse_args()
+
+    # Set random seed for reproducibility
+    set_seed(args.seed)
+    print(f"Random seed set to: {args.seed}")
 
     device = args.device or ('cuda' if torch.cuda.is_available() else 'cpu')
 

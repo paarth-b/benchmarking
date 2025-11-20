@@ -3,14 +3,16 @@ name = "benchmarking"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "biopython>=1.86",
     "matplotlib>=3.10.7",
     "pandas>=2.3.3",
     "pathlib>=1.0.1",
+    "protobuf>=6.33.1",
     "scikit-learn>=1.5.0",
     "scipy>=1.16.3",
     "seaborn>=0.13.2",
+    "sentencepiece>=0.2.1",
     "tqdm>=4.67.1",
 ]

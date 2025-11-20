@@ -15,8 +15,10 @@ from tqdm import tqdm
 from transformers import T5EncoderModel, AutoTokenizer
 
 try:
-    # When executed as a package module (python -m src.util.tmvec_1)
+    # When executed as a package module (python -m src.benchmarks.tmvec_1)
     from ..model.tmvec_model import TMScorePredictor, TMVecConfig
+    from .embedding_generators import ProtT5EmbeddingGenerator
+    from .tmvec_pipeline import run_tmvec_pipeline
 except ImportError:
     # Fallback for direct script execution so src/ stays importable
     repo_root = Path(__file__).resolve().parents[2]
@@ -24,6 +26,8 @@ except ImportError:
     if str(src_root) not in sys.path:
         sys.path.insert(0, str(src_root))
     from model.tmvec_model import TMScorePredictor, TMVecConfig
+    from benchmarks.embedding_generators import ProtT5EmbeddingGenerator
+    from benchmarks.tmvec_pipeline import run_tmvec_pipeline
 
 
 def load_sequences(fasta_path, max_sequences=1000):

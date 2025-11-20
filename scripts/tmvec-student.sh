@@ -1,21 +1,21 @@
 #!/bin/bash
+#SBATCH -A grp_qzhu44               # CUSTOMIZE: your account
+#SBATCH -N 1                        # number of nodes
+#SBATCH -c 4                        # CUSTOMIZE: number of cores
+#SBATCH -t 1-00:00:00               # CUSTOMIZE: time in d-hh:mm:ss
+#SBATCH -p public                   # CUSTOMIZE: partition
+#SBATCH -G a100:1                   # CUSTOMIZE: GPU type and count
+#SBATCH --mem=80G                   # CUSTOMIZE: memory
+#SBATCH -q public                   # CUSTOMIZE: QOS
+#SBATCH -o slurm_logs/slurm.%j.out  # file to save job's STDOUT (%j = JobId)
+#SBATCH -e slurm_logs/lurm.%j.err   # file to save job's STDERR (%j = JobId)
+#SBATCH --mail-type=ALL             # Send an e-mail when a job starts, stops, or fails
+#SBATCH --mail-user="%u@asu.edu"    # CUSTOMIZE: your email
+#SBATCH --export=NONE               # Purge the job-submitting shell environment
 
-#SBATCH -A grp_qzhu44
-#SBATCH -N 1            # number of nodes
-#SBATCH -c 4            # number of cores 
-#SBATCH -t 1-00:00:00   # time in d-hh:mm:ss
-#SBATCH -p public       # partition 
-#SBATCH -G a100:1
-#SBATCH --mem=80G
-#SBATCH -q public       # QOS
-#SBATCH -o slurm_logs/slurm.%j.out # file to save job's STDOUT (%j = JobId)
-#SBATCH -e slurm_logs/lurm.%j.err # file to save job's STDERR (%j = JobId)
-#SBATCH --mail-type=ALL # Send an e-mail when a job starts, stops, or fails
-#SBATCH --mail-user="%u@asu.edu"
-#SBATCH --export=NONE   # Purge the job-submitting shell environment
-
-#Change to the directory of our script
-cd /scratch/akeluska/prot_distill_divide/benchmarking
+# Get the repository root directory (parent of scripts directory)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
 
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
@@ -27,18 +27,16 @@ echo ""
 # Set hydra's verbosity to full error
 export HYDRA_FULL_ERROR=1
 
-# Set HF_HOME to cache directory
-export HF_HOME=/scratch/akeluska/.cache/
+# Set HF_HOME to cache directory (customize as needed)
+export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 
-#Load required software
-module load mamba/latest
+# CUSTOMIZE: Load required software and activate environment
+module load mamba/latest            # Replace with your module system
+source activate tmvec_distill       # Replace with your environment name
 
-#Activate our enviornment
-source activate tmvec_distill
-
-STUDENT_CHECKPOINT=/scratch/akeluska/prot_distill_divide/benchmarking/binaries/tmvec_student.pt
-FASTA_FILE=/scratch/akeluska/prot_distill_divide/data/fasta/cath-domain-seqs-S100-1k.fa
-OUTPUT_FILE=/scratch/akeluska/prot_distill_divide/benchmarking/results/tmvec_student_similarities.csv
+STUDENT_CHECKPOINT="$REPO_ROOT/binaries/tmvec_student.pt"
+FASTA_FILE="$REPO_ROOT/data/fasta/cath-domain-seqs-S100-1k.fa"
+OUTPUT_FILE="$REPO_ROOT/results/tmvec_student_similarities.csv"
 
 echo "Model: TM-Vec Student ${STUDENT_CHECKPOINT}"
 echo "FASTA: ${FASTA_FILE} (5000 sequences)"

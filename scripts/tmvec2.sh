@@ -1,21 +1,24 @@
 #!/bin/bash
 #SBATCH --job-name=tm2-bench
-#SBATCH --partition=ghx4
+#SBATCH --partition=ghx4              # CUSTOMIZE: your partition
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=72
+#SBATCH --cpus-per-task=72            # CUSTOMIZE: adjust as needed
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=0
-#SBATCH --account=beut-dtai-gh
-#SBATCH --time=12:00:00
+#SBATCH --account=beut-dtai-gh        # CUSTOMIZE: your account
+#SBATCH --time=12:00:00               # CUSTOMIZE: adjust as needed
 #SBATCH --output=logs/%j/%x.out
 #SBATCH --error=logs/%j/%x.err
 #SBATCH --exclusive
 
 set -e
 
+# Get the repository root directory (parent of scripts directory)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
 mkdir -p logs/$SLURM_JOB_ID
-cd /u/paarthbatra/git/benchmarking
 
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
@@ -24,11 +27,13 @@ echo "GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
 echo "Start: $(date)"
 echo ""
 
-# Load override module from deltaAI
-module load python/miniforge3_pytorch/2.7.0
+# CUSTOMIZE: Load your cluster's Python/PyTorch module or activate virtual environment
+module load python/miniforge3_pytorch/2.7.0  # Replace with your module
+# Alternatively: source /path/to/your/venv/bin/activate
 
-# Configure PYTHONPATH
-export PYTHONPATH="$(pwd)/../lobster/src:$(pwd):${PYTHONPATH:-}"
+# Configure PYTHONPATH (adjust LOBSTER_PATH if needed)
+export LOBSTER_PATH="${LOBSTER_PATH:-$REPO_ROOT/../lobster}"
+export PYTHONPATH="$LOBSTER_PATH/src:$REPO_ROOT:${PYTHONPATH:-}"
 
 echo "Model: TM-Vec2 last.ckpt"
 echo "FASTA: data/fasta/cath-domain-seqs-S100.fa (5000 sequences)"

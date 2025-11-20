@@ -134,6 +134,10 @@ def save_results(pairs, output_path):
     print(f"Saving results to {output_path}...")
 
     df = pd.DataFrame(pairs)
+
+    # Format e-value column in .3g scientific notation
+    df['evalue'] = df['evalue'].apply(lambda x: f'{x:.3g}')
+
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_path, index=False, float_format='%.6f')
 

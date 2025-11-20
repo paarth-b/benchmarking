@@ -23,11 +23,6 @@ METHOD_CONFIG = {
         'results_file': 'results/tmvec1_similarities.csv',
         'clean_ids': True
     },
-    'tmvec2': {
-        'name': 'TMvec-2',
-        'results_file': 'results/tmvec2_similarities.csv',
-        'clean_ids': True
-    },
     'student': {
         'name': 'TMvec-Student',
         'results_file': 'results/tmvec_student_similarities.csv',
@@ -145,14 +140,7 @@ def generate_all_plots(method_key, output_dir=None, threshold=0.5):
 def tmvec1(output_dir=None, threshold=0.5):
     """Generate plots for TMvec-1."""
     generate_all_plots('tmvec1', output_dir, threshold)
-
-
-def tmvec2(output_dir=None, threshold=None):
-    """Generate plots for TMvec-2."""
-    if threshold is None:
-        threshold = 0.6
-    generate_all_plots('tmvec2', output_dir, threshold)
-
+    
 
 def student(output_dir=None, threshold=0.5):
     """Generate plots for TMvec-Student."""
@@ -171,13 +159,12 @@ def main():
         epilog="""
 Examples:
   python -m src.visualization.plot_generator tmvec1
-  python -m src.visualization.plot_generator tmvec2 --output-dir figures/custom
   python -m src.visualization.plot_generator foldseek --threshold 0.6
         """
     )
     parser.add_argument(
         'method',
-        choices=['tmvec1', 'tmvec2', 'student', 'foldseek'],
+        choices=['tmvec1', 'student', 'foldseek'],
         help='Benchmarking method to visualize'
     )
     parser.add_argument(
@@ -189,20 +176,18 @@ Examples:
     parser.add_argument(
         '--threshold',
         type=float,
-        default=None,
-        help='Classification threshold for confusion matrix (default: 0.5, tmvec2: 0.6)'
+        default=0.5,
+        help='Classification threshold for confusion matrix (default: 0.5)'
     )
 
     args = parser.parse_args()
 
     method_funcs = {
         'tmvec1': tmvec1,
-        'tmvec2': tmvec2,
         'student': student,
         'foldseek': foldseek
     }
 
-    threshold = args.threshold if args.threshold is not None else (0.6 if args.method == 'tmvec2' else 0.5)
     method_funcs[args.method](args.output_dir, threshold)
 
 

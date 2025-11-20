@@ -17,49 +17,6 @@ class EmbeddingGenerator(ABC):
         """Generate embeddings for protein sequences."""
         pass
 
-
-class LobsterEmbeddingGenerator(EmbeddingGenerator):
-    """Generate LOBSTER embeddings for protein sequences."""
-
-    def generate(self, sequences, batch_size=32, max_length=512, device='cuda'):
-        from lobster.model import LobsterPMLM
-
-        print("Generating LOBSTER embeddings...")
-        model = LobsterPMLM("asalam91/lobster_24M")
-        tokenizer = model.tokenizer
-        model.to(device)
-        model.eval()
-
-        all_embeddings = []
-
-        with torch.no_grad():
-            for i in tqdm(range(0, len(sequences), batch_size)):
-                batch_seqs = sequences[i:i + batch_size]
-
-                encoded = tokenizer(
-                    batch_seqs,
-                    padding=True,
-                    truncation=True,
-                    max_length=max_length,
-                    return_tensors='pt'
-                )
-
-                input_ids = encoded['input_ids'].to(device)
-                attention_mask = encoded['attention_mask'].to(device)
-
-                outputs = model.model(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    output_hidden_states=True
-                )
-                embeddings = outputs.hidden_states[-1]
-
-                all_embeddings.append(embeddings.cpu())
-
-        print(f"Generated LOBSTER embeddings: {all_embeddings[0].shape}")
-        return all_embeddings
-
-
 class ProtT5EmbeddingGenerator(EmbeddingGenerator):
     """Generate ProtT5 embeddings for protein sequences."""
 

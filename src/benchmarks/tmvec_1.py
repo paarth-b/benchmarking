@@ -176,34 +176,25 @@ def save_results(seq_ids, tm_score_matrix, output_path):
 
 
 def main():
-    fasta_path = "data/cath-domain-seqs-S100-1k.fa"
-    # these two should be downloaded from https://figshare.com/s/e414d6a52fd471d86d69
-    checkpoint_path = "/scratch/akeluska/tm-bench/tmvec_1_models/tm_vec_cath_model_large.ckpt"
-    config_path = "/scratch/akeluska/tm-bench/tmvec_1_models/tm_vec_cath_model_large_params.json"
+    fasta_path = "data/fasta/cath-domain-seqs-S100-1k.fa"
+    checkpoint_path = "models/tmvec/tm_vec_cath.ckpt"
     output_path = "results/tmvec1_similarities.csv"
 
     max_sequences = 1000
     batch_size = 16
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    print("=" * 80)
-    print("TMvec-1 TM-Score Prediction")
-    print(f"Device: {device}, Max sequences: {max_sequences}")
-    print(f"Checkpoint: {checkpoint_path}")
-    print(f"Config: {config_path}")
-    print("=" * 80)
-
-    seq_ids, sequences = load_sequences(fasta_path, max_sequences)
-    plm_embeddings = generate_plm_embeddings(sequences, batch_size=batch_size, device=device)
-    tmvec_embeddings = generate_tmvec_embeddings(plm_embeddings, checkpoint_path, config_path, device)
-    tm_score_matrix = calculate_tm_scores(tmvec_embeddings)
-
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    save_results(seq_ids, tm_score_matrix, output_path)
-
-    print("=" * 80)
-    print("Complete!")
-    print("=" * 80)
+    embedding_generator = ProtT5EmbeddingGenerator()
+    run_tmvec_pipeline(
+        embedding_generator=embedding_generator,
+        fasta_path=fasta_path,
+        checkpoint_path=checkpoint_path,
+        output_path=output_path,
+        max_sequences=max_sequences,
+        batch_size=batch_size,
+        device=device,
+        use_v1_model=True
+    )
 
 
 if __name__ == "__main__":

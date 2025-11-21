@@ -10,7 +10,7 @@ wheels/
 .venv
 
 # custom
-/data
+/data/pdb
 /models
 /logs
 /figures

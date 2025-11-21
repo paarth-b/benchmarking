@@ -1,13 +1,13 @@
-# Protein Structure Similarity Benchmarking
+# TM-Vec Student: Structure Similarity Benchmarking
 
-TM-Vec Student benchmarking suite for evaluating other TM-score prediction methods on protein structures.
+Benchmarking suite for evaluating other TM-score prediction methods on protein structures.
 
 ## Overview
 
 This toolkit benchmarks three protein structure similarity methods against TM-Align scores:
 - **Foldseek**: Fast structure comparison using 3Di sequences
-- **TMalign**: Traditional structure alignment tool (TM-score ground truth)
-- **TM-Vec**: Neural network models for TM-score prediction from sequence embeddings
+- **TM-Vec**: Neural network model for TM-score prediction from sequence embeddings
+- **TM-Vec Student**: BiLSTM Architecture distilling TM-Vec embeddings to predict from sequence
 
 
 ## Installation

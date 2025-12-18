@@ -154,7 +154,7 @@ def main():
     """
     # Configuration
     fasta_path = "data/fasta/cath-domain-seqs-S100-1k.fa"
-    pdb_dir = "data/pdb/cath-s100-1k"
+    pdb_dir = "data/pdb/cath-s100"
     pdb_cache = "data/pdb/_pdb_cache"
     tmalign_binary = "models/tmalign/TMalign"
     output_path = "results/tmalign_similarities.csv"

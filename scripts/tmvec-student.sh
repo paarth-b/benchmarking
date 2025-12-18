@@ -30,11 +30,11 @@ export HYDRA_FULL_ERROR=1
 # Set HF_HOME to cache directory (customize as needed)
 export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 
-# CUSTOMIZE: Load required software and activate environment
+# CUSTOMIZE TO YOUR MACHINE: Load required software and activate environment
 module load mamba/latest            # Replace with your module system
 source activate tmvec_distill       # Replace with your environment name
 
-STUDENT_CHECKPOINT="$REPO_ROOT/binaries/tmvec_student.pt"
+STUDENT_CHECKPOINT="/scratch/akeluska/prot_distill_divide/benchmarking/binaries/tmvec_student.pt"
 FASTA_FILE="$REPO_ROOT/data/fasta/cath-domain-seqs-S100-1k.fa"
 OUTPUT_FILE="$REPO_ROOT/results/tmvec_student_similarities.csv"
 
@@ -60,3 +60,5 @@ echo "=========================================="
 echo ""
 echo "Results:"
 echo "  ${OUTPUT_FILE}"
+
+python /scratch/akeluska/prot_distill_divide/benchmarking/src/util/graphs/graphs_student.py

@@ -212,7 +212,7 @@ if __name__ == "__main__":
 
     # Configuration (can be overridden by command line args)
     default_fasta = "data/fasta/cath-domain-seqs-S100-1k.fa"
-    default_output = "data/pdb/cath-s100-1k"
+    default_output = "data/pdb/cath-s100"
     default_cache = "data/pdb/_pdb_cache"
 
     # Parse command line args

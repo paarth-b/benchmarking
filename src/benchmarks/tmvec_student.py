@@ -37,7 +37,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from train import EnhancedTMScoreModel, encode_sequence  # type: ignore  # noqa: E402
+from student_model import StudentModel, encode_sequence  # type: ignore  # noqa: E402
 
 
 # ------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ def encode_sequences_to_tensor(sequences: Sequence[str], max_length: int) -> tor
 # ------------------------------------------------------------------------------
 # MODEL / EMBEDDING GENERATION
 # ------------------------------------------------------------------------------
-def load_student_model(checkpoint_path: Path, device: torch.device) -> EnhancedTMScoreModel:
+def load_student_model(checkpoint_path: Path, device: torch.device) -> StudentModel:
     """Instantiate the student model and load weights."""
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
@@ -109,7 +109,7 @@ def load_student_model(checkpoint_path: Path, device: torch.device) -> EnhancedT
     if state_dict is None:
         state_dict = checkpoint
 
-    model = EnhancedTMScoreModel()
+    model = StudentModel()
     model.load_state_dict(state_dict, strict=True)
     model.to(device)
     model.eval()
@@ -120,7 +120,7 @@ def load_student_model(checkpoint_path: Path, device: torch.device) -> EnhancedT
 
 
 def compute_sequence_embeddings(
-    model: EnhancedTMScoreModel,
+    model: StudentModel,
     token_tensor: torch.Tensor,
     batch_size: int,
     device: torch.device,
@@ -146,7 +146,7 @@ def compute_sequence_embeddings(
 # PAIRWISE PREDICTION / CSV WRITING
 # ------------------------------------------------------------------------------
 def predict_pairwise_tm_scores(
-    model: EnhancedTMScoreModel,
+    model: StudentModel,
     embeddings: torch.Tensor,
     seq_ids: Sequence[str],
     output_path: Path,

@@ -19,9 +19,13 @@ uv sync
 pip install -r requirements.txt
 ```
 
+```bash
+# then, download the pdb files (by default, it downloads 1k pdb files from CATH) 
+python '/scratch/akeluska/prot_distill_divide/benchmarking/src/util/pdb_downloader.py'
+```
+
 2. Place required binaries in `binaries/`:
    - `foldseek` - Download from [Foldseek repository](https://github.com/steineggerlab/foldseek)
-   - `TMalign` - Download from [TMalign website](https://zhanggroup.org/TM-align/)
 
 3. Place model checkpoints in `models/`:
    - TM-Vec model files (e.g., `tm_vec_cath.ckpt`)

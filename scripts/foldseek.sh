@@ -15,7 +15,6 @@
 set -e
 
 mkdir -p logs/$SLURM_JOB_ID
-cd /u/paarthbatra/git/benchmarking
 
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
@@ -23,11 +22,12 @@ echo "CPUs: $SLURM_CPUS_PER_TASK"
 echo "Start: $(date)"
 echo ""
 
-# Load override module from deltaAI
-module load python/miniforge3_pytorch/2.7.0
+# CUSTOMIZE TO YOUR MACHINE: Load required software and activate environment
+module load mamba/latest            # Replace with your module system
+source activate tmvec_distill       # Replace with your environment name
 
 FOLDSEEK_BIN=binaries/foldseek
-STRUCTURE_DIR=data/pdb/cath-s100-1k
+STRUCTURE_DIR=data/pdb/cath-s100
 OUTPUT_FILE=results/foldseek_similarities.csv
 THREADS=$SLURM_CPUS_PER_TASK
 
@@ -54,3 +54,5 @@ echo "=========================================="
 echo ""
 echo "Results:"
 echo "  results/foldseek_similarities.csv"
+
+python /scratch/akeluska/prot_distill_divide/benchmarking/src/util/graphs/graphs_foldseek.py

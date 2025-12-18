@@ -32,7 +32,7 @@ python 'src/util/pdb_downloader.py'
    - `foldseek` - Download from [Foldseek repository](https://github.com/steineggerlab/foldseek)
    
 3. Place model checkpoints in `models/`:
-   - TM-Vec model files (e.g., `tm_vec_cath.ckpt`)
+   - TM-Vec model files (e.g., `tm_vec_cath_model.ckpt`) - Download from [tmvec-cath](https://huggingface.co/scikit-bio/tmvec-cath/tree/main)
 
 ## Running Benchmarks
 

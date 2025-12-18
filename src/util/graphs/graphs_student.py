@@ -215,7 +215,7 @@ if __name__ == "__main__":
     # Load actual results
     print("Loading CSV files...")
     df_tmalign = pd.read_csv('results/tmalign_similarities.csv')
-    df_tmvec_student = pd.read_csv('/scratch/akeluska/prot_distill_divide/benchmarking/results/tmvec_student_similarities.csv').head(100000)
+    df_tmvec_student = pd.read_csv('results/tmvec_student_similarities.csv').head(100000)
 
     # Merge on sequence IDs
     # Clean seq IDs for matching (remove range info from tmvec_student IDs)

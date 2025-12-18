@@ -31,15 +31,14 @@ export HYDRA_FULL_ERROR=1
 export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 
 # CUSTOMIZE TO YOUR MACHINE: Load required software and activate environment
-module load mamba/latest            # Replace with your module system
-source activate tmvec_distill       # Replace with your environment name
+module load python/miniforge3_pytorch/2.7.0
 
-STUDENT_CHECKPOINT="/scratch/akeluska/prot_distill_divide/benchmarking/binaries/tmvec_student.pt"
+STUDENT_CHECKPOINT="binaries/tmvec_student.pt"
 FASTA_FILE="$REPO_ROOT/data/fasta/cath-domain-seqs-S100-1k.fa"
 OUTPUT_FILE="$REPO_ROOT/results/tmvec_student_similarities.csv"
 
 echo "Model: TM-Vec Student ${STUDENT_CHECKPOINT}"
-echo "FASTA: ${FASTA_FILE} (5000 sequences)"
+echo "FASTA: ${FASTA_FILE} (1000 sequences)"
 echo "Output: ${OUTPUT_FILE}"
 echo ""
 
@@ -61,4 +60,4 @@ echo ""
 echo "Results:"
 echo "  ${OUTPUT_FILE}"
 
-python /scratch/akeluska/prot_distill_divide/benchmarking/src/util/graphs/graphs_student.py
+python benchmarking/src/util/graphs/graphs_student.py

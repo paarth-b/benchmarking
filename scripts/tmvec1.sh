@@ -12,11 +12,6 @@
 #SBATCH --error=logs/%j/%x.err
 #SBATCH --exclusive
 
-set -e
-
-mkdir -p logs/$SLURM_JOB_ID
-cd /u/paarthbatra/git/benchmarking
-
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
 echo "CPUs: $SLURM_CPUS_PER_TASK"
@@ -24,8 +19,8 @@ echo "GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
 echo "Start: $(date)"
 echo ""
 
-# Load override module from deltaAI
-module load python/miniforge3_pytorch/2.7.0
+# Customize to your machine: Load override module from deltaAI
+# module load python/miniforge3_pytorch/2.7.0
 
 # Configure PYTHONPATH
 export PYTHONPATH="$(pwd):${PYTHONPATH:-}"

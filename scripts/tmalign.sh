@@ -12,18 +12,13 @@
 #SBATCH --error=logs/%j/%x.err
 #SBATCH --exclusive
 
-set -e
-
-mkdir -p logs/$SLURM_JOB_ID
-cd /u/paarthbatra/git/benchmarking
-
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
 echo "CPUs: $SLURM_CPUS_PER_TASK"
 echo "Start: $(date)"
 echo ""
 
-# Load override module from deltaAI
+# Customize to your machine: Load required software and activate environment
 module load python/miniforge3_pytorch/2.7.0
 
 echo "TMalign binary: models/tmalign/TMalign"

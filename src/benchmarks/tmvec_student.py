@@ -31,13 +31,13 @@ import torch  # pyright: ignore[reportMissingImports]
 from tqdm import tqdm  # pyright: ignore[reportMissingModuleSource]
 
 # ------------------------------------------------------------------------------
-# Import student model definitions from train.py (lives at repo root)
+# Import student model definitions from src/model
 # ------------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from student_model import StudentModel, encode_sequence  # type: ignore  # noqa: E402
+from src.model.student_model import StudentModel, encode_sequence  # type: ignore  # noqa: E402
 
 
 # ------------------------------------------------------------------------------

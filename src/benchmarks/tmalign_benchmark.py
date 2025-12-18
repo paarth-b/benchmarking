@@ -13,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from pdb_downloader import parse_cath_ids, download_all_structures
+from src.util.pdb_downloader import parse_cath_ids
 
 
 def load_existing_structures(domain_ids, pdb_dir):
@@ -156,7 +156,7 @@ def main():
     fasta_path = "data/fasta/cath-domain-seqs-S100-1k.fa"
     pdb_dir = "data/pdb/cath-s100"
     pdb_cache = "data/pdb/_pdb_cache"
-    tmalign_binary = "models/tmalign/TMalign"
+    tmalign_binary = "binaries/TMalign"
     output_path = "results/tmalign_similarities.csv"
 
     print("=" * 60)
@@ -173,18 +173,6 @@ def main():
     print("Step 2: Loading PDB structures...")
     structures = load_existing_structures(domain_ids, pdb_dir)
     print(f"Found {len(structures)}/{len(domain_ids)} existing structures")
-
-    # Download missing structures if needed
-    missing = set(domain_ids) - set(structures.keys())
-    if missing:
-        print(f"\nDownloading {len(missing)} missing structures...")
-        new_structures = download_all_structures(
-            list(missing),
-            output_dir=pdb_dir,
-            pdb_dir=pdb_cache,
-            overwrite=False
-        )
-        structures.update(new_structures)
 
     if len(structures) < len(domain_ids):
         print(f"\nWarning: Only {len(structures)}/{len(domain_ids)} structures available")

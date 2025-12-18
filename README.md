@@ -18,6 +18,10 @@ uv sync
 # or
 pip install -r requirements.txt
 ```
+```bash
+# activate your environment:
+source .venv/bin/activate
+```
 
 ```bash
 # then, download the pdb files (by default, it downloads 1k pdb files from CATH) 
@@ -26,7 +30,7 @@ python 'src/util/pdb_downloader.py'
 
 2. Place required binaries in `binaries/`:
    - `foldseek` - Download from [Foldseek repository](https://github.com/steineggerlab/foldseek)
-
+   
 3. Place model checkpoints in `models/`:
    - TM-Vec model files (e.g., `tm_vec_cath.ckpt`)
 
@@ -43,6 +47,7 @@ bash scripts/foldseek.sh
 ```bash
 bash scripts/tmalign.sh
 ```
+> **Note:** TMalign binary requires x86-64 architecture. See Installation section for details.
 
 **TM-Vec Benchmark:**
 ```bash

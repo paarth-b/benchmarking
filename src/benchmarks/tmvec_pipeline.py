@@ -11,8 +11,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from ..model.tmvec_1_model import TransformerEncoderModule
-from ..model.tmvec_model import TMScorePredictor
+from ..model.tmvec_1_model import TransformerEncoderModule, TransformerEncoderModuleConfig
 
 
 def load_sequences(fasta_path, max_sequences=5000):
@@ -47,14 +46,11 @@ def load_sequences(fasta_path, max_sequences=5000):
     return seq_ids, sequences
 
 
-def generate_tmvec_embeddings(base_embeddings, model_path, device='cuda', use_v1_model=True):
+def generate_tmvec_embeddings(base_embeddings, model_path, device='cuda'):
     """Transform base embeddings into structure-aware embeddings."""
     print("Loading TMvec model...")
 
-    # Load TMvec-1 model (TransformerEncoderModule) from local checkpoint
     checkpoint = torch.load(model_path, map_location='cpu')
-    # Create config from checkpoint hyper_parameters or use defaults for ProtT5
-    from ..model.tmvec_1_model import TransformerEncoderModuleConfig
     config = TransformerEncoderModuleConfig(d_model=1024)  # ProtT5 embedding dimension
     model = TransformerEncoderModule(config)
     model.load_state_dict(checkpoint['state_dict'])
@@ -70,7 +66,6 @@ def generate_tmvec_embeddings(base_embeddings, model_path, device='cuda', use_v1
             batch_size, seq_len = batch_embeddings.shape[:2]
 
             padding_mask = torch.zeros(batch_size, seq_len, dtype=torch.bool, device=device)
-
             tmvec_emb = model(batch_embeddings, src_mask=None, src_key_padding_mask=padding_mask)
 
             all_tmvec_embeddings.append(tmvec_emb.cpu().numpy())
@@ -95,22 +90,18 @@ def calculate_tm_scores(embeddings):
 
     return tm_score_matrix
 
-def save_results(seq_ids, tm_score_matrix, output_path, sequence_lengths=None, evalue_threshold=None):
+def save_results(seq_ids, tm_score_matrix, output_path):
     """Save TM-score matrix as pairwise CSV."""
     print(f"Saving results to {output_path}...")
 
     pairs = []
     for i in range(len(seq_ids)):
         for j in range(i + 1, len(seq_ids)):
-            tm_score = tm_score_matrix[i, j]
-
-            pair = {
+            pairs.append({
                 'seq1_id': seq_ids[i],
                 'seq2_id': seq_ids[j],
-                'tm_score': tm_score
-            }
-
-            pairs.append(pair)
+                'tm_score': tm_score_matrix[i, j]
+            })
 
     df = pd.DataFrame(pairs)
     df.to_csv(output_path, index=False)
@@ -119,7 +110,7 @@ def save_results(seq_ids, tm_score_matrix, output_path, sequence_lengths=None, e
 
 
 def run_tmvec_pipeline(embedding_generator, fasta_path, checkpoint_path, output_path,
-                       max_sequences=1000, batch_size=32, device='cuda', evalue_threshold=None, use_v1_model=False):
+                       max_sequences=1000, batch_size=32, device='cuda'):
     """Run complete TMvec benchmarking pipeline."""
     print("=" * 80)
     print("TMvec TM-Score Prediction")
@@ -127,14 +118,13 @@ def run_tmvec_pipeline(embedding_generator, fasta_path, checkpoint_path, output_
     print("=" * 80)
 
     seq_ids, sequences = load_sequences(fasta_path, max_sequences)
-    sequence_lengths = {seq_id: len(seq) for seq_id, seq in zip(seq_ids, sequences)}
 
     base_embeddings = embedding_generator.generate(sequences, batch_size, device=device)
-    tmvec_embeddings = generate_tmvec_embeddings(base_embeddings, checkpoint_path, device, use_v1_model=use_v1_model)
+    tmvec_embeddings = generate_tmvec_embeddings(base_embeddings, checkpoint_path, device)
     tm_score_matrix = calculate_tm_scores(tmvec_embeddings)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    save_results(seq_ids, tm_score_matrix, output_path, sequence_lengths, evalue_threshold)
+    save_results(seq_ids, tm_score_matrix, output_path)
 
     print("=" * 80)
     print("Complete!")

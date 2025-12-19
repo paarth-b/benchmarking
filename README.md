@@ -27,9 +27,18 @@ source .venv/bin/activate
 # then, download the pdb files (by default, it downloads 1k pdb files from CATH) 
 python 'src/util/pdb_downloader.py'
 ```
-
+> **Note:** Both TMAlign and Foldseek binary can be compiled from source as well. The code to download foldseek directly is provided below. 
 2. Place required binaries in `binaries/`:
    - `foldseek` - Download from [Foldseek repository](https://github.com/steineggerlab/foldseek)
+   OR 
+      ```bash 
+      wget https://github.com/steineggerlab/foldseek/releases/download/10-941cd33/foldseek-linux-gpu.tar.gz
+      ```
+
+   - TMAlign - Download from Bioconda:
+      ```bash
+      conda install bioconda::tmalign
+      ```
    
 3. Place model checkpoints in `models/`:
    - TM-Vec model files (e.g., `tm_vec_cath_model.ckpt`) - Download from [tmvec-cath](https://huggingface.co/scikit-bio/tmvec-cath/tree/main)
@@ -47,7 +56,7 @@ bash scripts/foldseek.sh
 ```bash
 bash scripts/tmalign.sh
 ```
-> **Note:** TMalign binary requires x86-64 architecture. See Installation section for details.
+> **Note:** Given TMalign binary requires x86-64 architecture. See Installation section for details.
 
 **TM-Vec Benchmark:**
 ```bash
@@ -71,7 +80,7 @@ MKLLPLTALLLLGTVALVAAEAAPLKDVEQSSSQ...
 ```
 
 ### PDB Structures
-PDB files in `data/pdb/cath-s100/` directory. The benchmark can automatically download structures using the PDB downloader utility.
+PDB files must be placed in `data/pdb/cath-s100/` directory. The structures can be loaded from the `cath-s100-structures.zip` file, or automatically downloaded using the PDB downloader utility.
 
 ## Output Files
 

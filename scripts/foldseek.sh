@@ -23,8 +23,9 @@ echo "Start: $(date)"
 echo ""
 
 # CUSTOMIZE TO YOUR MACHINE: Load required software and activate environment
-module load mamba/latest            # Replace with your module system
-source activate tmvec_distill       # Replace with your environment name
+# module load mamba/latest            # Replace with your module system
+# source activate tmvec_distill       # Replace with your environment name
+module load python/miniforge3_pytorch/2.7.0`
 
 FOLDSEEK_BIN=binaries/foldseek
 STRUCTURE_DIR=data/pdb/cath-s100

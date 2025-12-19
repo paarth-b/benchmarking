@@ -11,6 +11,7 @@ wheels/
 
 # custom
 /data/pdb
+/data/scop40pdb
 /models
 /logs
 /figures

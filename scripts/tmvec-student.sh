@@ -60,4 +60,4 @@ echo ""
 echo "Results:"
 echo "  ${OUTPUT_FILE}"
 
-python benchmarking/src/util/graphs/graphs_student.py
+python src/util/graphs/graphs_student.py

@@ -55,4 +55,4 @@ echo ""
 echo "Results:"
 echo "  results/foldseek_similarities.csv"
 
-python /scratch/akeluska/prot_distill_divide/benchmarking/src/util/graphs/graphs_foldseek.py
+python src/util/graphs/graphs_foldseek.py

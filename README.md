@@ -42,12 +42,15 @@ python 'src/util/pdb_downloader.py'
       conda install bioconda::tmalign
       ```
    
-3. Download model checkpoints:
+3. Download model checkpoints from Hugging Face Hub:
+
    ```bash
-   source .venv/bin/activate
-   python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='scikit-bio/tmvec-cath', local_dir='models/tmvec-cath')"
+   huggingface-cli download scikit-bio/tmvec-cath --local-dir models/tmvec-cath
    ```
-   Or manually download from [tmvec-cath](https://huggingface.co/scikit-bio/tmvec-cath/tree/main) and place in `models/tmvec-cath/`
+
+
+   **Option C - Manual download:**
+   Download from [tmvec-cath](https://huggingface.co/scikit-bio/tmvec-cath/tree/main) and place in `models/tmvec-cath/`
 
 ## Running Benchmarks
 

@@ -35,7 +35,7 @@ python 'src/util/pdb_downloader.py'
       wget https://github.com/steineggerlab/foldseek/releases/download/10-941cd33/foldseek-linux-gpu.tar.gz
       ```
 
-   - TMAlign - Download from Bioconda:
+   - `TMAlign` - Use provided binary or download from Bioconda:
       ```bash
       conda install bioconda::tmalign
       ```

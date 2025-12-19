@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from ..model.tmvec_1_model import TransformerEncoderModule, TransformerEncoderModuleConfig
+from model.tmvec_1_model import TransformerEncoderModule, TransformerEncoderModuleConfig
 
 
 def load_sequences(fasta_path, max_sequences=5000):
@@ -95,18 +95,33 @@ def save_results(seq_ids, tm_score_matrix, output_path):
     print(f"Saving results to {output_path}...")
 
     pairs = []
+    scores = []
     for i in range(len(seq_ids)):
         for j in range(i + 1, len(seq_ids)):
+            score = tm_score_matrix[i, j]
             pairs.append({
                 'seq1_id': seq_ids[i],
                 'seq2_id': seq_ids[j],
-                'tm_score': tm_score_matrix[i, j]
+                'tm_score': score
             })
+            scores.append(score)
 
     df = pd.DataFrame(pairs)
     df.to_csv(output_path, index=False)
 
-    print(f"Saved {len(pairs):,} pairwise predictions")
+    # Print statistics
+    total_pairs = len(pairs)
+    scores_array = np.array(scores)
+    mean_score = scores_array.mean()
+    std_score = scores_array.std()
+    min_score = scores_array.min()
+    max_score = scores_array.max()
+
+    print("Pairwise TM-score statistics:")
+    print(f"  Total pairs: {total_pairs:,}")
+    print(f"  Mean / Std: {mean_score:.4f} / {std_score:.4f}")
+    print(f"  Min / Max: {min_score:.4f} / {max_score:.4f}")
+    print(f"✓ Results saved to {output_path}")
 
 
 def run_tmvec_pipeline(embedding_generator, fasta_path, checkpoint_path, output_path,

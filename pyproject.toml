@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "biopython>=1.86",
-    "huggingface-hub>=1.2.3",
+    "huggingface-hub",
+    "lightning>=2.6.0",
     "matplotlib>=3.10.7",
     "pandas>=2.3.3",
     "protobuf>=6.33.1",
@@ -16,5 +17,6 @@ dependencies = [
     "sentencepiece>=0.2.1",
     "torch>=2.0.0",
     "tqdm>=4.67.1",
+    "transformers",
     "wandb>=0.15.0",
 ]

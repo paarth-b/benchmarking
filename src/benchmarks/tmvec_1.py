@@ -24,7 +24,7 @@ except ImportError:
 
 def main():
     fasta_path = "data/fasta/cath-domain-seqs-S100-1k.fa"
-    checkpoint_path = "models/tm_vec_cath_model.ckpt"
+    checkpoint_path = "models/tmvec-cath/tm_vec_cath_model.ckpt"
     output_path = "results/tmvec1_similarities.csv"
 
     max_sequences = 1000

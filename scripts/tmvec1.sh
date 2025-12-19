@@ -44,3 +44,5 @@ echo "=========================================="
 echo ""
 echo "Results:"
 echo "  results/tmvec1_similarities.csv"
+
+python src/util/graphs/graphs_tmvec1.py

@@ -24,8 +24,10 @@ source .venv/bin/activate
 ```
 
 ```bash
-# then, download the pdb files (by default, it downloads 1k pdb files from CATH) 
+# then, unzip pdb files in the data folder (or download)
+unzip 'data/cath-s100-structures.zip'
 python 'src/util/pdb_downloader.py'
+# make sure to move the cath-s100 unzipped folder into data/
 ```
 > **Note:** Both TMAlign and Foldseek binary can be compiled from source as well. The code to download foldseek directly is provided below. 
 2. Place required binaries in `binaries/`:
@@ -40,8 +42,12 @@ python 'src/util/pdb_downloader.py'
       conda install bioconda::tmalign
       ```
    
-3. Place model checkpoints in `models/`:
-   - TM-Vec model files (e.g., `tm_vec_cath_model.ckpt`) - Download from [tmvec-cath](https://huggingface.co/scikit-bio/tmvec-cath/tree/main)
+3. Download model checkpoints:
+   ```bash
+   source .venv/bin/activate
+   python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='scikit-bio/tmvec-cath', local_dir='models/tmvec-cath')"
+   ```
+   Or manually download from [tmvec-cath](https://huggingface.co/scikit-bio/tmvec-cath/tree/main) and place in `models/tmvec-cath/`
 
 ## Running Benchmarks
 

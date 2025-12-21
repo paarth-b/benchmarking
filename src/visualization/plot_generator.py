@@ -21,29 +21,43 @@ METHOD_CONFIG = {
     'tmvec1': {
         'name': 'TMvec-1',
         'results_file': 'results/tmvec1_similarities.csv',
+        'truth_file': 'results/tmalign_similarities.csv',
         'clean_ids': True
     },
     'student': {
         'name': 'TMvec-Student',
         'results_file': 'results/tmvec_student_similarities.csv',
+        'truth_file': 'results/tmalign_similarities.csv',
         'clean_ids': True
     },
     'foldseek': {
         'name': 'Foldseek',
         'results_file': 'results/foldseek_similarities.csv',
+        'truth_file': 'results/tmalign_similarities.csv',
+        'clean_ids': False
+    },
+    'scope40_tmvec1': {
+        'name': 'TMvec-1 (SCOPe40)',
+        'results_file': 'results/scope40_tmvec1_similarities.csv',
+        'truth_file': 'results/scope40_tmalign_similarities.csv',
+        'clean_ids': False
+    },
+    'scope40_student': {
+        'name': 'TMvec-Student (SCOPe40)',
+        'results_file': 'results/scope40_tmvec_student_similarities.csv',
+        'truth_file': 'results/scope40_tmalign_similarities.csv',
         'clean_ids': False
     }
 }
 
 
-def load_and_merge_data(method_key, truth_file='results/tmalign_similarities.csv', max_rows=100000):
+def load_and_merge_data(method_key, max_rows=None):
     """
     Load prediction results and merge with ground truth.
 
     Args:
-        method_key: Method identifier (tmvec1, tmvec2, student, foldseek)
-        truth_file: Path to ground truth TM-align results
-        max_rows: Maximum rows to load from prediction file
+        method_key: Method identifier (tmvec1, student, foldseek, scope40_tmvec1, scope40_student)
+        max_rows: Maximum rows to load from prediction file (None for all rows)
 
     Returns:
         Merged DataFrame with both prediction and ground truth scores
@@ -51,8 +65,11 @@ def load_and_merge_data(method_key, truth_file='results/tmalign_similarities.csv
     config = METHOD_CONFIG[method_key]
 
     print(f"Loading {config['name']} results...")
-    df_truth = pd.read_csv(truth_file)
-    df_pred = pd.read_csv(config['results_file']).head(max_rows)
+    df_truth = pd.read_csv(config['truth_file'])
+    if max_rows:
+        df_pred = pd.read_csv(config['results_file']).head(max_rows)
+    else:
+        df_pred = pd.read_csv(config['results_file'])
 
     if config['clean_ids']:
         df_pred['seq1_clean'] = df_pred['seq1_id'].str.replace(r'/\d+-\d+', '', regex=True)
@@ -82,7 +99,7 @@ def generate_all_plots(method_key, output_dir=None, threshold=0.5):
     Generate all benchmark plots for a given method.
 
     Args:
-        method_key: Method identifier (tmvec1, tmvec2, student, foldseek)
+        method_key: Method identifier (tmvec1, student, foldseek, scope40_tmvec1, scope40_student)
         output_dir: Output directory (auto-generated if None)
         threshold: Classification threshold for confusion matrix
     """
@@ -90,7 +107,12 @@ def generate_all_plots(method_key, output_dir=None, threshold=0.5):
 
     if output_dir is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        folder_name = 'tmvec_student' if method_key == 'student' else method_key
+        if method_key == 'student':
+            folder_name = 'tmvec_student'
+        elif method_key == 'scope40_student':
+            folder_name = 'scope40_tmvec_student'
+        else:
+            folder_name = method_key
         output_dir = f'figures/{folder_name}_{timestamp}'
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -152,6 +174,16 @@ def foldseek(output_dir=None, threshold=0.5):
     generate_all_plots('foldseek', output_dir, threshold)
 
 
+def scope40_tmvec1(output_dir=None, threshold=0.5):
+    """Generate plots for TMvec-1 on SCOPe40."""
+    generate_all_plots('scope40_tmvec1', output_dir, threshold)
+
+
+def scope40_student(output_dir=None, threshold=0.5):
+    """Generate plots for TMvec-Student on SCOPe40."""
+    generate_all_plots('scope40_student', output_dir, threshold)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Generate benchmark visualization plots',
@@ -159,12 +191,13 @@ def main():
         epilog="""
 Examples:
   python -m src.visualization.plot_generator tmvec1
-  python -m src.visualization.plot_generator foldseek --threshold 0.6
+  python -m src.visualization.plot_generator scope40_tmvec1
+  python -m src.visualization.plot_generator scope40_student --threshold 0.6
         """
     )
     parser.add_argument(
         'method',
-        choices=['tmvec1', 'student', 'foldseek'],
+        choices=['tmvec1', 'student', 'foldseek', 'scope40_tmvec1', 'scope40_student'],
         help='Benchmarking method to visualize'
     )
     parser.add_argument(
@@ -185,10 +218,12 @@ Examples:
     method_funcs = {
         'tmvec1': tmvec1,
         'student': student,
-        'foldseek': foldseek
+        'foldseek': foldseek,
+        'scope40_tmvec1': scope40_tmvec1,
+        'scope40_student': scope40_student
     }
 
-    method_funcs[args.method](args.output_dir, threshold)
+    method_funcs[args.method](args.output_dir, args.threshold)
 
 
 if __name__ == "__main__":

@@ -1,210 +1,104 @@
 #!/usr/bin/env python
-"""
-TMalign benchmark for CATH S100-1k sequences.
-
-Three-step process:
-1. Load or download PDB structures (using pdb_downloader module)
-2. Run TMalign on all pairwise combinations
-3. Save TM-scores to CSV
-"""
+"""TMalign benchmark for CATH and SCOPe."""
 
 import subprocess
+import sys
 from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from src.util.pdb_downloader import parse_cath_ids
+
+def parse_fasta(fasta_path):
+    """Extract IDs from FASTA file."""
+    ids = []
+    with open(fasta_path) as f:
+        for line in f:
+            if line.startswith('>'):
+                # Handle both formats: >cath|4_4_0|107lA00 and >d12asa_
+                parts = line.strip()[1:].split('|')
+                ids.append(parts[-1].split('/')[0])
+    return ids
 
 
-def load_existing_structures(domain_ids, pdb_dir):
-    """
-    Load existing PDB structures from directory.
-
-    Args:
-        domain_ids: List of CATH domain IDs
-        pdb_dir: Directory containing PDB files
-
-    Returns:
-        Dictionary mapping domain_id -> Path to PDB file
-    """
+def load_structures(domain_ids, pdb_dir, has_extension=True):
+    """Load PDB structures from directory."""
     pdb_dir = Path(pdb_dir)
-    structures = {}
-
-    for domain_id in domain_ids:
-        pdb_path = pdb_dir / f"{domain_id}.pdb"
-        if pdb_path.exists():
-            structures[domain_id] = pdb_path
-
-    return structures
+    ext = ".pdb" if has_extension else ""
+    return {did: pdb_dir / f"{did}{ext}" for did in domain_ids if (pdb_dir / f"{did}{ext}").exists()}
 
 
-def run_tmalign(pdb1, pdb2, tmalign_binary):
-    """
-    Run TMalign and parse TM-score.
-
-    Args:
-        pdb1: Path to first PDB file
-        pdb2: Path to second PDB file
-        tmalign_binary: Path to TMalign executable
-
-    Returns:
-        TM-score (float) or None if failed
-    """
+def run_tmalign(pdb1, pdb2, binary):
+    """Run TMalign and return TM-score."""
     try:
-        result = subprocess.run(
-            [tmalign_binary, str(pdb1), str(pdb2), "-a", "T"],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-
-        # Parse TM-score from output
-        # Look for line like: "TM-score= 0.12345 (if normalized by average length of two structures, i.e., LN= 162.0, d0= 4.74)"
+        result = subprocess.run([binary, str(pdb1), str(pdb2), "-a", "T"],
+                                capture_output=True, text=True, timeout=60)
         for line in result.stdout.split('\n'):
             if line.startswith('TM-score=') and 'average length' in line:
-                tm_score = float(line.split()[1])
-                return tm_score
-
-        # If we didn't find the expected format, return None
-        return None
-
-    except subprocess.TimeoutExpired:
-        print(f"Timeout running TMalign on {pdb1.name} vs {pdb2.name}")
-        return None
-    except Exception as e:
-        print(f"Error running TMalign on {pdb1.name} vs {pdb2.name}: {e}")
-        return None
+                return float(line.split()[1])
+    except:
+        pass
+    return None
 
 
-def calculate_tmalign_scores(structures, tmalign_binary):
-    """
-    Calculate pairwise TM-scores using TMalign.
-
-    Args:
-        structures: Dictionary mapping domain_id -> Path to PDB file
-        tmalign_binary: Path to TMalign executable
-
-    Returns:
-        List of dictionaries with seq1_id, seq2_id, and tm_score
-    """
-    print("Running TMalign on all pairs...")
-
-    domain_ids = list(structures.keys())
+def calculate_scores(structures, binary):
+    """Calculate pairwise TM-scores."""
+    ids = list(structures.keys())
     pairs = []
-    failed_pairs = 0
+    total = len(ids) * (len(ids) - 1) // 2
 
-    total_pairs = len(domain_ids) * (len(domain_ids) - 1) // 2
-
-    with tqdm(total=total_pairs, desc="TMalign comparisons") as pbar:
-        for i in range(len(domain_ids)):
-            for j in range(i + 1, len(domain_ids)):
-                domain1 = domain_ids[i]
-                domain2 = domain_ids[j]
-
-                tm_score = run_tmalign(
-                    structures[domain1],
-                    structures[domain2],
-                    tmalign_binary
-                )
-
-                if tm_score is not None:
-                    pairs.append({
-                        'seq1_id': f"cath|4_4_0|{domain1}",
-                        'seq2_id': f"cath|4_4_0|{domain2}",
-                        'tm_score': tm_score
-                    })
-                else:
-                    failed_pairs += 1
-
+    with tqdm(total=total, desc="TMalign") as pbar:
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                score = run_tmalign(structures[ids[i]], structures[ids[j]], binary)
+                if score:
+                    pairs.append({'seq1_id': ids[i], 'seq2_id': ids[j], 'tm_score': score})
                 pbar.update(1)
 
-    print(f"Computed {len(pairs)} TM-scores ({failed_pairs} failed)")
     return pairs
 
 
-def save_results(pairs, output_path):
-    """
-    Save TM-scores to CSV.
-
-    Args:
-        pairs: List of dictionaries with seq1_id, seq2_id, and tm_score
-        output_path: Path to output CSV file
-    """
-    if not pairs:
-        print("Warning: No TM-scores to save!")
-        return
-
-    df = pd.DataFrame(pairs)
-    df.to_csv(output_path, index=False)
-
-    print(f"Saved {len(pairs):,} TM-scores to {output_path}")
-    print(f"Mean TM-score: {df['tm_score'].mean():.4f}")
-    print(f"Std TM-score:  {df['tm_score'].std():.4f}")
-
-
 def main():
-    """
-    Main function to run TMalign benchmark.
+    """Run TMalign benchmark."""
+    is_scope40 = len(sys.argv) > 1 and sys.argv[1] == "scope40"
 
-    Steps:
-    1. Parse CATH domain IDs from FASTA
-    2. Load existing structures or download missing ones
-    3. Run TMalign on all pairs
-    4. Save results to CSV
-    """
-    # Configuration
-    fasta_path = "data/fasta/cath-domain-seqs-S100-1k.fa"
-    pdb_dir = "data/pdb/cath-s100"
-    pdb_cache = "data/pdb/_pdb_cache"
-    tmalign_binary = "binaries/TMalign"
-    output_path = "results/tmalign_similarities.csv"
+    if is_scope40:
+        fasta = "data/fasta/scope40-2500.fa"
+        pdb_dir = "data/scope40pdb/pdb"
+        output = "results/scope40_tmalign_similarities.csv"
+        has_ext = False
+    else:
+        fasta = "data/fasta/cath-domain-seqs-S100-1k.fa"
+        pdb_dir = "data/pdb/cath-s100"
+        output = "results/tmalign_similarities.csv"
+        has_ext = True
 
-    print("=" * 60)
-    print("TMalign Benchmark for CATH S100-1k")
-    print("=" * 60)
-    print()
+    binary = "binaries/TMalign"
 
-    # Parse domain IDs
-    print("Step 1: Parsing FASTA file...")
-    domain_ids = parse_cath_ids(fasta_path)
-    print()
+    print(f"Parsing {fasta}...")
+    ids = parse_fasta(fasta)
+    print(f"Found {len(ids)} sequences")
 
-    # Load or download structures
-    print("Step 2: Loading PDB structures...")
-    structures = load_existing_structures(domain_ids, pdb_dir)
-    print(f"Found {len(structures)}/{len(domain_ids)} existing structures")
+    print(f"Loading structures from {pdb_dir}...")
+    structures = load_structures(ids, pdb_dir, has_ext)
+    print(f"Loaded {len(structures)}/{len(ids)} structures")
 
-    if len(structures) < len(domain_ids):
-        print(f"\nWarning: Only {len(structures)}/{len(domain_ids)} structures available")
-        print(f"Missing {len(domain_ids) - len(structures)} structures")
-        missing_ids = set(domain_ids) - set(structures.keys())
-        if missing_ids:
-            print(f"First few missing: {list(missing_ids)[:5]}")
-
-    if len(structures) == 0:
-        print("\nError: No structures available! Cannot proceed.")
+    if not structures:
+        print("Error: No structures found!")
         return
 
-    print()
-
-    # Run TMalign
-    print("Step 3: Running TMalign on all pairs...")
-    pairs = calculate_tmalign_scores(structures, tmalign_binary)
-    print()
+    print("Running TMalign...")
+    pairs = calculate_scores(structures, binary)
 
     if not pairs:
-        print("Error: No TM-scores computed! Check TMalign binary and PDB files.")
+        print("Error: No scores computed!")
         return
 
-    # Save results
-    print("Step 4: Saving results...")
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    save_results(pairs, output_path)
-    print()
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(pairs)
+    df.to_csv(output, index=False)
 
-    print("=" * 60)
-    print("Complete!")
-    print("=" * 60)
+    print(f"\nSaved {len(pairs):,} scores to {output}")
+    print(f"Mean: {df['tm_score'].mean():.4f}, Std: {df['tm_score'].std():.4f}")
 
 
 if __name__ == "__main__":

@@ -33,23 +33,29 @@ export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 # CUSTOMIZE TO YOUR MACHINE: Load required software and activate environment
 module load python/miniforge3_pytorch/2.7.0
 
-STUDENT_CHECKPOINT="binaries/tmvec_student.pt"
-FASTA_FILE="$REPO_ROOT/data/fasta/cath-domain-seqs-S100-1k.fa"
-OUTPUT_FILE="$REPO_ROOT/results/tmvec_student_similarities.csv"
+DATASET=${1:-cath}
 
-echo "Model: TM-Vec Student ${STUDENT_CHECKPOINT}"
-echo "FASTA: ${FASTA_FILE} (1000 sequences)"
-echo "Output: ${OUTPUT_FILE}"
-echo ""
-
-# Run TM-Vec Student predictions
-echo "Running TM-Vec Student predictions on CATH S100..."
-echo ""
-
-python -m src.benchmarks.tmvec_student \
-    --fasta "${FASTA_FILE}" \
-    --checkpoint "${STUDENT_CHECKPOINT}" \
-    --output "${OUTPUT_FILE}" \
+if [ "$DATASET" = "scope40" ]; then
+    FASTA_FILE="$REPO_ROOT/data/fasta/scope40-2500.fa"
+    OUTPUT_FILE="$REPO_ROOT/results/scope40_tmvec_student_similarities.csv"
+    echo "Model: TM-Vec Student binaries/tmvec_student.pt"
+    echo "FASTA: ${FASTA_FILE} (2500 sequences)"
+    echo "Output: ${OUTPUT_FILE}"
+    echo ""
+    echo "Running TM-Vec Student predictions on SCOPe40-2500..."
+    echo ""
+    python -m src.benchmarks.tmvec_student scope40
+else
+    FASTA_FILE="$REPO_ROOT/data/fasta/cath-domain-seqs-S100-1k.fa"
+    OUTPUT_FILE="$REPO_ROOT/results/tmvec_student_similarities.csv"
+    echo "Model: TM-Vec Student binaries/tmvec_student.pt"
+    echo "FASTA: ${FASTA_FILE} (1000 sequences)"
+    echo "Output: ${OUTPUT_FILE}"
+    echo ""
+    echo "Running TM-Vec Student predictions on CATH S100..."
+    echo ""
+    python -m src.benchmarks.tmvec_student
+fi
 
 echo ""
 echo "=========================================="
@@ -59,5 +65,3 @@ echo "=========================================="
 echo ""
 echo "Results:"
 echo "  ${OUTPUT_FILE}"
-
-python src/util/graphs/graphs_student.py

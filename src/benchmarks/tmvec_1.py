@@ -1,46 +1,133 @@
 #!/usr/bin/env python
-"""
-TMvec-1: Generate embeddings and compute TM-score predictions for CATH S100.
-"""
+"""TMvec-1: TM-score predictions for CATH and SCOPe."""
 
 import sys
 from pathlib import Path
-
+import numpy as np
+import pandas as pd
 import torch
+import torch.nn.functional as F
+from tqdm import tqdm
 
-try:
-    # When executed as a package module (python -m src.benchmarks.tmvec_1)
-    from .embedding_generators import ProtT5EmbeddingGenerator
-    from .tmvec_pipeline import run_tmvec_pipeline
-except ImportError:
-    # Fallback for direct script execution so src/ stays importable
-    repo_root = Path(__file__).resolve().parents[2]
-    src_root = repo_root / "src"
-    if str(src_root) not in sys.path:
-        sys.path.insert(0, str(src_root))
-    from benchmarks.embedding_generators import ProtT5EmbeddingGenerator
-    from benchmarks.tmvec_pipeline import run_tmvec_pipeline
+from .embedding_generators import ProtT5EmbeddingGenerator
+from ..model.tmvec_1_model import TransformerEncoderModule, TransformerEncoderModuleConfig
+
+
+def load_fasta(fasta_path, max_sequences=None):
+    """Load sequences from FASTA file."""
+    seq_ids, sequences = [], []
+    current_id, current_seq = None, []
+
+    with open(fasta_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line.startswith('>'):
+                if current_id:
+                    seq_ids.append(current_id)
+                    sequences.append(''.join(current_seq))
+                    if max_sequences and len(seq_ids) >= max_sequences:
+                        break
+                current_id = line[1:].split()[0]
+                current_seq = []
+            else:
+                current_seq.append(line)
+
+        if current_id and (not max_sequences or len(seq_ids) < max_sequences):
+            seq_ids.append(current_id)
+            sequences.append(''.join(current_seq))
+
+    print(f"Loaded {len(seq_ids)} sequences")
+    return seq_ids, sequences
+
+
+def generate_embeddings(sequences, embedding_generator, batch_size, device):
+    """Generate ProtT5 embeddings."""
+    print("Generating ProtT5 embeddings...")
+    return embedding_generator.generate(sequences, batch_size, device=device)
+
+
+def transform_embeddings(base_embeddings, checkpoint_path, device):
+    """Transform embeddings with TMvec model."""
+    print("Loading TMvec model...")
+    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    config = TransformerEncoderModuleConfig(d_model=1024)
+    model = TransformerEncoderModule(config)
+    model.load_state_dict(checkpoint['state_dict'])
+    model.to(device)
+    model.eval()
+
+    print("Transforming embeddings...")
+    all_embeddings = []
+
+    with torch.no_grad():
+        for batch in tqdm(base_embeddings, desc="TMvec encoding"):
+            batch = batch.to(device)
+            batch_size, seq_len = batch.shape[:2]
+            padding_mask = torch.zeros(batch_size, seq_len, dtype=torch.bool, device=device)
+            emb = model(batch, src_mask=None, src_key_padding_mask=padding_mask)
+            all_embeddings.append(emb.cpu().numpy())
+
+    return np.concatenate(all_embeddings, axis=0)
+
+
+def calculate_scores(embeddings):
+    """Calculate pairwise TM-scores via cosine similarity."""
+    print("Calculating pairwise scores...")
+    embeddings_tensor = torch.from_numpy(embeddings)
+    embeddings_norm = F.normalize(embeddings_tensor, p=2, dim=1)
+    tm_matrix = torch.mm(embeddings_norm, embeddings_norm.t()).numpy()
+    print(f"Mean: {tm_matrix.mean():.4f}, Std: {tm_matrix.std():.4f}")
+    return tm_matrix
+
+
+def save_results(seq_ids, tm_matrix, output_path):
+    """Save pairwise scores to CSV."""
+    print(f"Saving to {output_path}...")
+    pairs = []
+    for i in range(len(seq_ids)):
+        for j in range(i + 1, len(seq_ids)):
+            pairs.append({
+                'seq1_id': seq_ids[i],
+                'seq2_id': seq_ids[j],
+                'tm_score': tm_matrix[i, j]
+            })
+
+    df = pd.DataFrame(pairs)
+    df.to_csv(output_path, index=False)
+    print(f"Saved {len(pairs):,} scores")
 
 
 def main():
-    fasta_path = "data/fasta/cath-domain-seqs-S100-1k.fa"
-    checkpoint_path = "models/tm_vec_cath_model.ckpt"
-    output_path = "results/tmvec1_similarities.csv"
+    is_scope40 = len(sys.argv) > 1 and sys.argv[1] == "scope40"
 
-    max_sequences = 1000
+    if is_scope40:
+        fasta = "data/fasta/scope40-2500.fa"
+        output = "results/scope40_tmvec1_similarities.csv"
+        max_seq = 2500
+    else:
+        fasta = "data/fasta/cath-domain-seqs-S100-1k.fa"
+        output = "results/tmvec1_similarities.csv"
+        max_seq = 1000
+
+    checkpoint = "models/tm_vec_cath_model.ckpt"
     batch_size = 16
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    embedding_generator = ProtT5EmbeddingGenerator()
-    run_tmvec_pipeline(
-        embedding_generator=embedding_generator,
-        fasta_path=fasta_path,
-        checkpoint_path=checkpoint_path,
-        output_path=output_path,
-        max_sequences=max_sequences,
-        batch_size=batch_size,
-        device=device
-    )
+    print(f"Device: {device}")
+    print(f"FASTA: {fasta}")
+    print(f"Output: {output}")
+
+    seq_ids, sequences = load_fasta(fasta, max_seq)
+    embedding_gen = ProtT5EmbeddingGenerator()
+    base_embeddings = generate_embeddings(sequences, embedding_gen, batch_size, device)
+    tmvec_embeddings = transform_embeddings(base_embeddings, checkpoint, device)
+    tm_matrix = calculate_scores(tmvec_embeddings)
+
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
+    save_results(seq_ids, tm_matrix, output)
 
 
 if __name__ == "__main__":

@@ -17,3 +17,6 @@ wheels/
 /figures
 
 foldseek
+**/pdb/
+**/scop40pdb.tar.gz
+**/tmp/

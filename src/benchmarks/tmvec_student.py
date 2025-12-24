@@ -270,7 +270,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-length",
         type=int,
-        default=600,
+        default=900,
         help="Maximum sequence length (tokens) used during training",
     )
     parser.add_argument(

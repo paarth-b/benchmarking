@@ -56,4 +56,7 @@ echo ""
 echo "Results:"
 echo "  results/foldseek_similarities.csv"
 
-python src/util/graphs/graphs_foldseek.py
+python src/util/graphs/benchmark_graphs.py \
+    --method-name "Foldseek" \
+    --prediction-csv "results/foldseek_similarities.csv" \
+    --truth-csv "results/tmalign_similarities.csv"

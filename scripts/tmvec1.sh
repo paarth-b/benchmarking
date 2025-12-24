@@ -45,4 +45,7 @@ echo ""
 echo "Results:"
 echo "  results/tmvec1_similarities.csv"
 
-python src/util/graphs/graphs_tmvec1.py
+python src/util/graphs/benchmark_graphs.py \
+    --method-name "TMvec-1" \
+    --prediction-csv "results/tmvec1_similarities.csv" \
+    --truth-csv "results/tmalign_similarities.csv"

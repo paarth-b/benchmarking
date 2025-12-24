@@ -10,7 +10,7 @@ wheels/
 .venv
 
 # custom
-/data/pdb
+/data/scope40pdb-15k
 /data/scope40pdb
 /models
 /logs

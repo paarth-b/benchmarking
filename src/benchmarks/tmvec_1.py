@@ -5,12 +5,51 @@ import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from .embedding_generators import ProtT5EmbeddingGenerator
 from ..model.tmvec_1_model import TransformerEncoderModule, TransformerEncoderModuleConfig
+
+
+def generate_embeddings(sequences, batch_size=32, max_length=512, device='cuda'):
+    """Generate ProtT5 embeddings for protein sequences."""
+    from transformers import T5Tokenizer, T5EncoderModel
+
+    print("Generating ProtT5 embeddings...")
+    model = T5EncoderModel.from_pretrained("Rostlab/prot_t5_xl_half_uniref50-enc")
+    tokenizer = T5Tokenizer.from_pretrained("Rostlab/prot_t5_xl_half_uniref50-enc")
+    model.to(device)
+    model.eval()
+
+    all_embeddings = []
+    sequences_spaced = [" ".join(list(seq)) for seq in sequences]
+
+    with torch.no_grad():
+        for i in tqdm(range(0, len(sequences_spaced), batch_size)):
+            batch_seqs = sequences_spaced[i:i + batch_size]
+
+            encoded = tokenizer(
+                batch_seqs,
+                padding=True,
+                truncation=True,
+                max_length=max_length,
+                return_tensors='pt'
+            )
+
+            input_ids = encoded['input_ids'].to(device)
+            attention_mask = encoded['attention_mask'].to(device)
+
+            outputs = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask
+            )
+            embeddings = outputs.last_hidden_state
+            all_embeddings.append(embeddings.cpu())
+
+    return all_embeddings
 
 
 def load_fasta(fasta_path, max_sequences=None):
@@ -43,10 +82,6 @@ def load_fasta(fasta_path, max_sequences=None):
     return seq_ids, sequences
 
 
-def generate_embeddings(sequences, embedding_generator, batch_size, device):
-    """Generate ProtT5 embeddings."""
-    print("Generating ProtT5 embeddings...")
-    return embedding_generator.generate(sequences, batch_size, device=device)
 
 
 def transform_embeddings(base_embeddings, checkpoint_path, device):
@@ -84,35 +119,40 @@ def calculate_scores(embeddings):
 
 
 def save_results(seq_ids, tm_matrix, output_path):
-    """Save pairwise scores to CSV."""
+    """Save pairwise scores to Parquet."""
     print(f"Saving to {output_path}...")
-    pairs = []
+    seq1_ids = []
+    seq2_ids = []
+    tm_scores = []
+
     for i in range(len(seq_ids)):
         for j in range(i + 1, len(seq_ids)):
-            pairs.append({
-                'seq1_id': seq_ids[i],
-                'seq2_id': seq_ids[j],
-                'tm_score': tm_matrix[i, j]
-            })
+            seq1_ids.append(seq_ids[i])
+            seq2_ids.append(seq_ids[j])
+            tm_scores.append(float(tm_matrix[i, j]))
 
-    df = pd.DataFrame(pairs)
-    df.to_csv(output_path, index=False)
-    print(f"Saved {len(pairs):,} scores")
+    table = pa.table({
+        'seq1_id': seq1_ids,
+        'seq2_id': seq2_ids,
+        'tm_score': tm_scores
+    })
+    pq.write_table(table, output_path, compression='snappy')
+    print(f"Saved {len(tm_scores):,} scores")
 
 
 def main():
     is_scope40 = len(sys.argv) > 1 and sys.argv[1] == "scope40"
 
     if is_scope40:
-        fasta = "data/fasta/scope40-2500.fa"
-        output = "results/scope40_tmvec1_similarities.csv"
-        max_seq = 2500
+        fasta = "data/fasta/scope40-1000.fa"
+        output = "results/scope40_tmvec1_similarities.parquet"
+        max_seq = 1000
     else:
         fasta = "data/fasta/cath-domain-seqs-S100-1k.fa"
-        output = "results/tmvec1_similarities.csv"
+        output = "results/tmvec1_similarities.parquet"
         max_seq = 1000
 
-    checkpoint = "models/tm_vec_cath_model.ckpt"
+    checkpoint = "binaries/tm_vec_cath_model.ckpt"
     batch_size = 16
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -121,8 +161,7 @@ def main():
     print(f"Output: {output}")
 
     seq_ids, sequences = load_fasta(fasta, max_seq)
-    embedding_gen = ProtT5EmbeddingGenerator()
-    base_embeddings = generate_embeddings(sequences, embedding_gen, batch_size, device)
+    base_embeddings = generate_embeddings(sequences, batch_size, device=device)
     tmvec_embeddings = transform_embeddings(base_embeddings, checkpoint, device)
     tm_matrix = calculate_scores(tmvec_embeddings)
 

@@ -14,6 +14,7 @@ import wandb
 import logging
 import argparse
 from scipy.stats import gaussian_kde
+import time
 from typing import Optional, Tuple
 
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # ==============================================================================
 
-INPUT_FILE = "/scratch/akeluska/prot_distill_divide/balanced_3m_with_sequences.parquet"
+INPUT_FILE = "/scratch/akeluska/prot_distill_divide/tmvec2_pairs_predictions.parquet"
 
 # WandB configuration
 WANDB_CONFIG = {
@@ -684,6 +685,8 @@ def train_student_model(
 
         # Save best model
         if metrics['overall_mae'] < best_mae:
+            curr_stamp = time.time()
+            print(f"Save new best model at timestamp {curr_stamp}")
             best_mae = metrics['overall_mae']
             best_metrics = metrics.copy()
             torch.save({
@@ -692,7 +695,7 @@ def train_student_model(
                 'metrics': metrics,
                 'overall_mae': metrics['overall_mae'],
                 'config': config
-            }, "student_best.pt")
+            }, f"student_best_{curr_stamp}.pt")
 
         # Print epoch summary
         print(f"\nEpoch {epoch+1}/{num_epochs} Results:")

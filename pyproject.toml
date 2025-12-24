@@ -19,5 +19,5 @@ dependencies = [
     "torch",
     "tqdm",
     "transformers",
-    "wandb",
+    "wandb"
 ]

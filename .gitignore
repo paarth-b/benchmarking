@@ -14,7 +14,8 @@ wheels/
 /data/scop40pdb
 /models
 /logs
-/figures
+/alignResults
+/scopbenchmark
 
 foldseek
 **/pdb/

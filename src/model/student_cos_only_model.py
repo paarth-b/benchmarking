@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # ==============================================================================
 
-INPUT_FILE = "/scratch/akeluska/prot_distill_divide/balanced_3m_with_sequences.parquet"
+INPUT_FILE = "/scratch/akeluska/prot_distill_divide/tmvec2_pairs_predictions.parquet"
 
 WANDB_CONFIG = {
     "entity": None,
@@ -356,7 +356,7 @@ def train_cosine_model(
                 'model_state_dict': model.state_dict(),
                 'metrics': metrics,
                 'config': config
-            }, "cosine_student_best.pt")
+            }, "cosine_student_best_tmvec2.pt")
 
         print(f"\nEpoch {epoch+1}: R²={metrics['overall_r2']:.4f}, MAE={metrics['overall_mae']:.4f}")
         

@@ -1,0 +1,11 @@
+metric,value
+threshold,0.5
+true_positives,2675.0
+true_negatives,78111.0
+false_positives,528.0
+false_negatives,36.0
+precision,0.8351545426162972
+recall,0.9867207672445591
+f1_score,0.9046330740615487
+accuracy,0.9930669944683467
+total_samples,81350.0

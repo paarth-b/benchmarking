@@ -27,33 +27,52 @@ echo ""
 # source activate tmvec_distill       # Replace with your environment name
 module load python/miniforge3_pytorch/2.7.0`
 
+DATASET=${1:-cath}
 FOLDSEEK_BIN=binaries/foldseek
-STRUCTURE_DIR=data/pdb/cath-s100
-OUTPUT_FILE=results/foldseek_similarities.csv
 THREADS=$SLURM_CPUS_PER_TASK
 
-echo "Foldseek binary: $FOLDSEEK_BIN"
-echo "Structure dir: $STRUCTURE_DIR"
-echo "Output: $OUTPUT_FILE"
-echo ""
-
-# Run Foldseek benchmark
-echo "Running Foldseek benchmark on CATH S100-1k..."
-echo ""
-
-python -m src.benchmarks.foldseek_benchmark \
-    --structure-dir "$STRUCTURE_DIR" \
-    --foldseek-bin "$FOLDSEEK_BIN" \
-    --output "$OUTPUT_FILE" \
-    --threads "$THREADS"
-
-echo ""
-echo "=========================================="
-echo "Foldseek Benchmark Complete!"
-echo "End: $(date)"
-echo "=========================================="
-echo ""
-echo "Results:"
-echo "  results/foldseek_similarities.csv"
-
-python src/util/graphs/graphs_foldseek.py
+if [ "$DATASET" = "scope40" ]; then
+    STRUCTURE_DIR=data/scope40pdb
+    OUTPUT_FILE=results/scope40_foldseek_similarities.parquet
+    echo "Foldseek binary: $FOLDSEEK_BIN"
+    echo "Structure dir: $STRUCTURE_DIR"
+    echo "Output: $OUTPUT_FILE"
+    echo ""
+    echo "Running Foldseek benchmark on SCOPe40-2500..."
+    echo ""
+    python -m src.benchmarks.foldseek_benchmark \
+        --structure-dir "$STRUCTURE_DIR" \
+        --foldseek-bin "$FOLDSEEK_BIN" \
+        --output "$OUTPUT_FILE" \
+        --threads "$THREADS"
+    echo ""
+    echo "=========================================="
+    echo "Foldseek Benchmark Complete!"
+    echo "End: $(date)"
+    echo "=========================================="
+    echo ""
+    echo "Results:"
+    echo "  results/scope40_foldseek_similarities.parquet"
+else
+    STRUCTURE_DIR=data/pdb/cath-s100
+    OUTPUT_FILE=results/foldseek_similarities.csv
+    echo "Foldseek binary: $FOLDSEEK_BIN"
+    echo "Structure dir: $STRUCTURE_DIR"
+    echo "Output: $OUTPUT_FILE"
+    echo ""
+    echo "Running Foldseek benchmark on CATH S100-1k..."
+    echo ""
+    python -m src.benchmarks.foldseek_benchmark \
+        --structure-dir "$STRUCTURE_DIR" \
+        --foldseek-bin "$FOLDSEEK_BIN" \
+        --output "$OUTPUT_FILE" \
+        --threads "$THREADS"
+    echo ""
+    echo "=========================================="
+    echo "Foldseek Benchmark Complete!"
+    echo "End: $(date)"
+    echo "=========================================="
+    echo ""
+    echo "Results:"
+    echo "  results/foldseek_similarities.csv"
+fi

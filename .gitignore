@@ -14,6 +14,5 @@ wheels/
 /data/scope40pdb
 /models
 /logs
-/figures
-
-foldseek
+/binaries/foldseek
+/binaries/tm_vec_cath_model.ckpt

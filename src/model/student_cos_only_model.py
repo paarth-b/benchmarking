@@ -26,7 +26,7 @@ INPUT_FILE = "/scratch/akeluska/prot_distill_divide/tmvec2_pairs_predictions.par
 
 WANDB_CONFIG = {
     "entity": None,
-    "project": "tm-distill-cosine-only",
+    "project": "tm-distill",
 }
 
 # Amino acid vocabulary
@@ -67,9 +67,6 @@ class ProteinSequenceEncoder(nn.Module):
 
     def __init__(self, vocab_size, embed_dim=128, hidden_dim=512, output_dim=512, dropout=0.1):
         super().__init__()
-        # Note: Increased hidden/output dims to 512 to give the vector space more capacity
-        # since we removed the MLP head.
-        
         self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=PAD_TOKEN)
         self.lstm = nn.LSTM(
             embed_dim, hidden_dim // 2, 2,
@@ -78,10 +75,8 @@ class ProteinSequenceEncoder(nn.Module):
         self.attention = nn.Linear(hidden_dim, 1)
         self.output_proj = nn.Sequential(
             nn.Linear(hidden_dim, output_dim),
-            # Removed ReLU here to allow negative values in embedding space
-            # if necessary, though Tanh/Normalize usually handles it.
         )
-        self.norm = nn.LayerNorm(output_dim) # Added normalization for stability
+        self.norm = nn.LayerNorm(output_dim)
 
     def forward(self, x):
         mask = (x != PAD_TOKEN).float()
@@ -100,7 +95,7 @@ class ProteinSequenceEncoder(nn.Module):
         return output
 
 
-class CosineStudentModel(nn.Module):
+class StudentModel(nn.Module):
     """
     Pure Cosine Similarity Model.
     Architecture: Encoder Only.
@@ -120,13 +115,9 @@ class CosineStudentModel(nn.Module):
 
         if seq_b is not None:
             repr_b = self.seq_encoder(seq_b)
-            
-            # --- PURE COSINE SIMILARITY ---
+
             # Calculate cosine similarity (-1 to 1)
             cosine_sim = F.cosine_similarity(repr_a, repr_b, dim=1)
-            
-            # Note: We do NOT clamp here during training to avoid killing gradients 
-            # for values outside [0,1], but we expect the loss to pull them in.
             return repr_a, repr_b, cosine_sim
         else:
             return repr_a
@@ -163,7 +154,7 @@ class ProteinPairDataset(Dataset):
 # LOSS FUNCTION (SIMPLIFIED)
 # ==============================================================================
 
-class CosineRegressionLoss(nn.Module):
+class CosineLoss(nn.Module):
     """
     Simple MSE Loss designed to force Cosine Sim to match TM Score.
     """
@@ -174,7 +165,6 @@ class CosineRegressionLoss(nn.Module):
     def forward(self, predictions: torch.Tensor, targets: torch.Tensor):
         # targets are 0.0 to 1.0 (TM Score)
         # predictions are -1.0 to 1.0 (Cosine Sim)
-        
         # We penalize the difference directly.
         # If prediction is negative but target is 0.1, it learns to be positive.
         loss = self.mse(predictions, targets)
@@ -189,8 +179,6 @@ class CosineRegressionLoss(nn.Module):
 def get_metrics(true_scores, pred_scores):
     """Compute metrics (clamping predictions to valid 0-1 range first)."""
     true_scores = np.array(true_scores)
-    # Important: Cosine can return negative, but TM score is [0,1].
-    # For metric calculation, we clamp.
     pred_scores = np.clip(np.array(pred_scores), 0.0, 1.0)
 
     metrics = {}
@@ -212,7 +200,7 @@ def create_scatter_plot(true_scores, pred_scores, epoch, r2, plot_dir, save_name
     # Clip for plotting only
     plot_preds = np.clip(pred_scores, 0.0, 1.0)
 
-    plt.scatter(true_scores, plot_preds, alpha=0.5, s=8, color='purple') # purple for cosine
+    plt.scatter(true_scores, plot_preds, alpha=0.5, s=8, color='purple')
 
     min_val = 0.0
     max_val = 1.0
@@ -288,13 +276,13 @@ def train_cosine_model(
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
 
-    # Initialize Model - Using the Cosine Variant
-    model = CosineStudentModel().to(device)
+    # Initialize Model
+    model = StudentModel().to(device)
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Model parameters (Encoder Only): {total_params:,}")
 
     # Loss - Using simplified MSE
-    criterion = CosineRegressionLoss()
+    criterion = CosineLoss()
     
     optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
     scheduler = OneCycleLR(optimizer, max_lr=learning_rate, steps_per_epoch=len(train_loader), epochs=num_epochs)

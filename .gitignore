@@ -8,12 +8,15 @@ wheels/
 
 # Virtual environments
 .venv
+uv.lock
 
 # custom
-/data/pdb
-/data/scop40pdb
+/data/scope40pdb-15k
+/data/scope40pdb
 /models
+/alignResults
+data/scop/
+scopbenchmark/
 /logs
-/figures
-
-foldseek
+/binaries/foldseek
+/binaries/tm_vec_cath_model.ckpt

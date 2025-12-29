@@ -10,180 +10,123 @@ import tempfile
 import shutil
 import argparse
 from tqdm import tqdm
-import os
 
 
-def get_pdb_files(structure_dir, max_structures=None):
-    """Get list of PDB files from structure directory."""
-    pdb_files = list(Path(structure_dir).glob("*.pdb"))
+def get_pdb_files(structure_dir):
+    """Get all PDB files from structure directory."""
+    pdb_files = [f for f in Path(structure_dir).iterdir() if f.is_file()]
     pdb_files.sort()
-
-    if max_structures:
-        pdb_files = pdb_files[:max_structures]
-
     print(f"Found {len(pdb_files)} PDB files")
     return pdb_files
 
 
-def extract_pdb_ids(pdb_files):
-    """Extract CATH IDs from file paths."""
-    pdb_ids = []
-    for pdb_file in pdb_files:
-        # Extract ID from filename (e.g., "107lA00.pdb" -> "cath|4_4_0|107lA00")
-        pdb_id = pdb_file.stem
-        cath_id = f"cath|4_4_0|{pdb_id}"
-        pdb_ids.append(cath_id)
-    return pdb_ids
+def run_foldseek(structure_dir, foldseek_bin, threads):
+    """Run Foldseek all-vs-all search."""
+    print("Running Foldseek all-vs-all search...")
 
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tsv_path = Path(tmp_dir) / "results.tsv"
 
-def run_foldseek_all_vs_all_search(structure_dir, output_prefix, foldseek_bin, threads=32):
-    """Run Foldseek all-vs-all search using easy-search with exhaustive mode."""
-    print("Running Foldseek all-vs-all search with exhaustive mode...")
-
-    # Create temporary directory
-    tmp_dir = tempfile.mkdtemp()
-
-    try:
-        # Use easy-search with exhaustive search and TM-score output directly
-        # Set very permissive thresholds to get all pairs
-        tsv_path = f"{output_prefix}.tsv"
-        cmd_easy_search = [
+        cmd = [
             foldseek_bin, "easy-search",
             structure_dir, structure_dir,
-            tsv_path, tmp_dir,
-            "--exhaustive-search", "1",  # Skip prefilter, perform all-vs-all alignment
+            str(tsv_path), tmp_dir,
+            "--exhaustive-search", "1",
             "--format-output", "query,target,alntmscore,evalue",
             "--threads", str(threads),
-            "--gpu", "1",  # Enable GPU acceleration
-            "-e", "10",  # Default Foldseek E-value
-            "-c", "0.0",  # No coverage threshold (default filters by coverage)
-            "--max-seqs", "1000000"  # Very high limit
+            "--gpu", "1",
+            "-e", "10",
+            "--max-seqs", "100000",
+            "--min-ungapped-score", "0"
         ]
 
-        print(f"Running easy-search: {' '.join(cmd_easy_search)}")
-        result = subprocess.run(cmd_easy_search, capture_output=True, text=True)
+        # Run without capturing output so we can see progress
+        result = subprocess.run(cmd)
 
         if result.returncode != 0:
-            print(f"Foldseek easy-search failed:")
-            print(f"STDOUT: {result.stdout}")
-            print(f"STDERR: {result.stderr}")
-            raise RuntimeError("Foldseek easy-search failed")
+            raise RuntimeError("Foldseek failed")
 
-        print("Foldseek all-vs-all search completed")
-        return tsv_path
-
-    finally:
-        # Clean up temporary directory
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
-
-def parse_foldseek_results(tsv_file, pdb_ids):
-    """Parse Foldseek TSV results from easy-search and extract pairwise TM-scores."""
-    print("Parsing Foldseek results...")
-
-    # Read the TSV file (easy-search format: query, target, alntmscore, evalue)
-    df = pd.read_csv(tsv_file, sep='\t', header=None,
-                     names=['query', 'target', 'alntmscore', 'evalue'])
+        # Read results before tmp_dir is deleted
+        df = pd.read_csv(tsv_path, sep='\t', header=None,
+                        names=['query', 'target', 'alntmscore', 'evalue'],
+                        low_memory=False)
 
     print(f"Loaded {len(df)} alignments")
+    return df
 
-    # Create mapping from PDB basename to CATH ID
-    basename_to_cath = {}
-    for cath_id in pdb_ids:
-        # Extract the PDB part: "cath|4_4_0|107lA00" -> "107lA00"
-        pdb_part = cath_id.split('|')[-1]
-        basename_to_cath[pdb_part] = cath_id
 
-    # Filter for our PDB IDs and create pairwise results
-    pairs = []
-    seen_pairs = set()
+def parse_results(df):
+    """Extract unique pairwise comparisons and average bidirectional scores."""
+    print("Parsing results...")
+
+    # Collect scores for both directions
+    scores_dict = {}
 
     for _, row in tqdm(df.iterrows(), total=len(df)):
-        query_path = row['query']
-        target_path = row['target']
-        tm_score = row['alntmscore']  # Use alignment-normalized TM-score
-        evalue = row['evalue']
+        q_id = Path(row['query']).stem
+        t_id = Path(row['target']).stem
 
-        # Extract basename from path (e.g., "/path/to/107lA00.pdb" -> "107lA00")
-        q_basename = Path(query_path).stem
-        t_basename = Path(target_path).stem
+        # Remove _MODEL_* suffix if present
+        q_id = q_id.split('_MODEL_')[0] if '_MODEL_' in q_id else q_id
+        t_id = t_id.split('_MODEL_')[0] if '_MODEL_' in t_id else t_id
 
-        # Map to CATH IDs
-        if q_basename in basename_to_cath and t_basename in basename_to_cath:
-            q_id = basename_to_cath[q_basename]
-            t_id = basename_to_cath[t_basename]
+        if q_id != t_id:
+            pair_key = tuple(sorted([q_id, t_id]))
+            if pair_key not in scores_dict:
+                scores_dict[pair_key] = {'scores': [], 'evalues': []}
+            scores_dict[pair_key]['scores'].append(row['alntmscore'])
+            scores_dict[pair_key]['evalues'].append(row['evalue'])
 
-            # Skip self-comparisons and duplicates
-            if q_id != t_id:
-                pair_key = tuple(sorted([q_id, t_id]))
-                if pair_key not in seen_pairs:
-                    seen_pairs.add(pair_key)
-                    pairs.append({
-                        'seq1_id': q_id,
-                        'seq2_id': t_id,
-                        'tm_score': tm_score,
-                        'evalue': evalue
-                    })
+    # Average bidirectional scores
+    pairs = []
+    for pair_key, data in scores_dict.items():
+        pairs.append({
+            'seq1_id': pair_key[0],
+            'seq2_id': pair_key[1],
+            'tm_score': sum(data['scores']) / len(data['scores']),
+            'evalue': min(data['evalues'])  # Use minimum e-value
+        })
 
-    print(f"Extracted {len(pairs)} unique pairwise comparisons")
+    print(f"Extracted {len(pairs)} unique pairs")
     return pairs
 
 
 def save_results(pairs, output_path):
-    """Save pairwise TM-score results as CSV."""
-    print(f"Saving results to {output_path}...")
-
+    """Save results to Parquet."""
     df = pd.DataFrame(pairs)
 
-    # Format e-value column to always use scientific notation with 3 significant figures
-    df['evalue'] = df['evalue'].apply(lambda x: f'{x:.2e}')
-
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False, float_format='%.6f')
+    df.to_parquet(output_path, compression='snappy', index=False)
 
-    print(f"Saved {len(pairs):,} pairwise predictions")
+    print(f"Saved {len(pairs):,} pairs to {output_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Foldseek protein structure similarity benchmark")
-    parser.add_argument("--structure-dir", required=True, help="Directory containing PDB files")
+    parser = argparse.ArgumentParser(description="Foldseek benchmark")
+    parser.add_argument("--structure-dir", required=True, help="Directory with PDB files")
     parser.add_argument("--foldseek-bin", required=True, help="Path to foldseek binary")
-    parser.add_argument("--output", required=True, help="Output CSV file path")
+    parser.add_argument("--output", required=True, help="Output parquet path")
+    parser.add_argument("--fasta", help="Fasta file to filter structures")
     parser.add_argument("--threads", type=int, default=32, help="Number of threads")
-    parser.add_argument("--max-structures", type=int, help="Maximum number of structures to process")
-
     args = parser.parse_args()
 
     print("=" * 80)
-    print("Foldseek Structure Similarity Benchmark")
+    print("Foldseek Benchmark")
     print(f"Structure dir: {args.structure_dir}")
     print(f"Output: {args.output}")
     print(f"Threads: {args.threads}")
-    print(f"Max structures: {args.max_structures or 'all'}")
     print("=" * 80)
 
-    # Get PDB files
-    pdb_files = get_pdb_files(args.structure_dir, args.max_structures)
+    pdb_files = get_pdb_files(args.structure_dir)
     if not pdb_files:
-        raise ValueError(f"No PDB files found in {args.structure_dir}")
+        raise ValueError(f"No files found in {args.structure_dir}")
 
-    pdb_ids = extract_pdb_ids(pdb_files)
-
-    # Create temporary directory for results
-    with tempfile.TemporaryDirectory() as tmp_base:
-        output_prefix = Path(tmp_base) / "foldseek_results"
-
-        # Run all-vs-all search using database approach
-        tsv_file = run_foldseek_all_vs_all_search(args.structure_dir, str(output_prefix), args.foldseek_bin, args.threads)
-
-        # Parse results
-        pairs = parse_foldseek_results(tsv_file, pdb_ids)
-
-        # Save final results
-        save_results(pairs, args.output)
+    df = run_foldseek(args.structure_dir, args.foldseek_bin, args.threads)
+    pairs = parse_results(df)
+    save_results(pairs, args.output)
 
     print("=" * 80)
-    print("Foldseek Benchmark Complete!")
+    print("Complete!")
     print("=" * 80)
 
 

@@ -25,11 +25,13 @@ echo ""
 # CUSTOMIZE TO YOUR MACHINE: Load required software and activate environment
 # module load mamba/latest            # Replace with your module system
 # source activate tmvec_distill       # Replace with your environment name
-module load python/miniforge3_pytorch/2.7.0`
+# module load python/miniforge3_pytorch/2.7.0
 
 DATASET=${1:-cath}
 FOLDSEEK_BIN=binaries/foldseek
-THREADS=$SLURM_CPUS_PER_TASK
+
+# Local default
+THREADS=${SLURM_CPUS_PER_TASK:-8}
 
 if [ "$DATASET" = "scope40" ]; then
     STRUCTURE_DIR=data/scope40pdb

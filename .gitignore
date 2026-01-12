@@ -21,3 +21,5 @@ foldseek
 **/pdb/
 **/scop40pdb.tar.gz
 **/tmp/
+
+.DS_Store

@@ -1,0 +1,243 @@
+% This is samplepaper.tex, a sample chapter demonstrating the
+% LLNCS macro package for Springer Computer Science proceedings;
+% Version 2.21 of 2022/01/12
+%
+\documentclass[runningheads]{llncs}
+%
+\usepackage[T1]{fontenc}
+% T1 fonts will be used to generate the final print and online PDFs,
+% so please use T1 fonts in your manuscript whenever possible.
+% Other font encodings may result in incorrect characters.
+%
+\usepackage{amsmath}
+\usepackage{graphicx}
+% Used for displaying a sample figure. If possible, figure files should
+% be included in EPS format.
+%
+% If you use the hyperref package, please uncomment the following two lines
+% to display URLs in blue roman font according to Springer's eBook style:
+%\usepackage{color}
+%\renewcommand\UrlFont{\color{blue}\rmfamily}
+%\urlstyle{rm}
+%
+\begin{document}
+%
+\title{TM-Vec 2: Accelerated Remote Homology Detection for Structural Similarity}
+%
+% \titlerunning{Abbreviated paper title}
+% If the paper title is too long for the running head, you can set
+% an abbreviated paper title here
+%
+\author{Aryan Keluskar \inst{*,1} \and
+Paarth Batra \inst{*,1} \and
+Valentyn Bezshapkin\inst{*,3} \and
+James T. Morton\inst{2,\textsuperscript{\textdagger}} \and
+Qiyun Zhu\inst{1,\textsuperscript{\textdagger}}}
+%
+\authorrunning{A. Keluskar, P. Batra, V. Bezshapkin, et al.}
+% First names are abbreviated in the running head.
+% If there are more than two authors, 'et al.' is used.
+%
+\institute{The Biodesign Institute 
+\email{\{akeluska,pbatra6,qiyun.zhu\}@asu.edu}\\ \and
+Gutz Analytics
+\email{jmorton@gutzanalytics.com}\\ \and
+Institute of Microbiology, ETH Zurich 
+\email{valentyn.bezshapkin@micro.biol.ethz.ch}}
+%
+\maketitle            
+%
+\begin{abstract}
+Understanding protein function is an essential aspect of many biological applications. While billions of protein sequences have been identified from sequencing data, the number of protein folds underlying biology is surprisingly limited, likely numbering tens of thousands. The "sequence-fold gap" limits the success of functional annotation methods that rely on sequence homology, especially for newly sequenced, divergent microbial genomes. TM-Vec is a deep learning architecture that can predict TM scores as a metric of structural similarity directly from sequence pairs, bypassing true structural alignment. However, the computational demands of its protein language model (PLM) embeddings create a significant bottleneck for large-scale database searches. To address this, we present two innovations: TM-Vec 2, a new architecture that optimizes the computationally-heavy sequence embedding step, and TM-Vec Student, a highly efficient model created by distilling the knowledge of the original TM-Vec. Our new models were benchmarked for both accuracy and speed on CATH domains and large-scale database queries. We finally compare it to state-of-the-art models to observe that TM-Vec Student achieves speedups of up to 258x over the original TM-Vec and 56x over Foldseek for large-scale database queries, while maintaining higher accuracy compared to the original TM-Vec.
+
+\keywords{Functional annotation \and
+Protein structural similarity \and
+TM-score prediction \and
+Neural network \and
+Knowledge distillation \and
+Computational biology}
+\end{abstract}
+
+\footnotetext[1]{* denotes equal contribution}
+\footnotetext[2]{\textsuperscript{\textdagger} Correspondence: Qiyun Zhu <qiyun.zhu@asu.edu> and James T. Morton <jmorton@gutzanalytics.com> }
+
+\section{Introduction}
+
+Understanding protein function is critical for biological applications, including drug discovery, therapeutic development, and precision medicine. The ability to accurately assess structural relationships between proteins without experimental 3D structures enables applications including remote homology detection \cite{hamamsy2024protein}, functional annotation transfer \cite{koestler2010fact}, and evolutionary analysis \cite{fares2006caps}. Remote homology detection, wherein similarity between proteins exhibiting negligible sequence similarity (\textless 0.25 identity) is identified through conserved three-dimensional architectures, constitutes a fundamental challenge in computational structural biology that has acquired increased relevance following the expansion of predicted structure databases \cite{kilinc2025major}.
+
+The Template Modelling Score (TM-Score) is the gold standard metric for quantifying structural similarity, providing a length-normalised measure that correlates well with fold similarity \cite{zhang2005tm}. 
+%\cite{doi:10.1073/pnas.2016239118,elnaggar2021prottranscrackinglanguagelifes}. 
+By learning to embed proteins in a space where cosine similarity correlates with TM-scores, TM-Vec \cite{hamamsy2024protein} achieved state-of-the-art performance in remote homology detection. It demonstrated that deep learning approaches can predict structural similarity directly from sequences with remarkable accuracy, something that was previously unattainable using sequence-based alignment techniques. Despite these advances, current deep learning approaches, including TM-Vec, remain computationally intensive, preventing their integration into routine bioinformatic pipelines. The exponential growth of biological sequence databases has generated a critical need for rapid and scalable methods capable of analysing billions of protein sequences efficiently.  
+
+To address this computational bottleneck, we systematically evaluate efficient protein language models (Lobster, Ankh, ProtMamba) as alternatives to ProtT5-XL. Despite its smaller size, Lobster-24M showcased an optimal balance between accuracy and efficiency, which led to its selection as our foundation model. Firstly, we use a BiLSTM architecture to reduce time complexity as compared to the attention mechanism implemented in the transformer-based TM-Vec. Second, we develop a lightweight neural architecture (1.3M parameters) that embeds sequences into a latent space, where cosine similarity between vectors correlates with TM-score. The student model is trained to predict embeddings directly from raw amino acid sequences, whose cosine similarity can compute TM-scores, achieving comparable accuracy to TM-Vec with orders of magnitude fewer computational resources.
+
+% TODO: add tm-vec 2.0
+% In modern LLMs, it is common to leverage model distillation to construct a smaller model that approximates the functionality of the original model (CITE mistral, deepseek, etc). By doing so, these smaller models are faster to run, since they have fewer operations required to generate predictions. 
+
+
+% To address this computational bottleneck, we use a BiLSTM architecture to reduce time complexity as compared to the previous attention mechanism implemented in the transformer-based TM-Vec. Furthermore, we develop a lightweight neural architecture (1.3M parameters) that learns to embed sequences into a latent space, where cosine similarity between vectors correlates with TM-score, achieving comparable accuracy to TM-Vec with orders of magnitude fewer computational resources.
+
+\section{Related Work}
+
+
+\subsection{Structural Similarity Prediction}
+
+Traditional "gold standard" structural alignment algorithms, such as TM-align \cite{zhang2005tm} and DALI \cite{holm1995dali}, are computationally expensive as they directly superimpose 3D coordinates. This cost was manageable when the PDB was the primary, smaller data source.
+However, the release of AlphaFold \cite{jumper2021highly} created a massive data surplus, with hundreds of millions of predicted structures in databases like AlphaFoldDB. This new scale has rendered these methods computationally infeasible for large-scale analysis and created the need for developing novel approaches.
+The new tools can be roughly separated into two categories: structure-based and embedding-based. Foldseek \cite{van2024fast} addresses some efficiency concerns through algorithmic optimisations and the 3Di structural alphabet, achieving remarkable speed improvements while maintaining sensitivity comparable to traditional structural aligners. While these methods are highly accurate, they require precomputed or predicted structures, restricting their scalability. 
+
+\subsection{Protein Language Models for Structure}
+
+The emergence of large-scale protein language models has transformed structural biology. ESM \cite{rives2021biological}, ProtBERT \cite{elnaggar2021prottranscrackinglanguagelifes}, and ProtT5 \cite{elnaggar2021prottranscrackinglanguagelifes} demonstrated that self-supervised learning on protein sequences captures evolutionary and, hence, structural information. TM-Vec leveraged this by fine-tuning ProtT5-XL for structural similarity prediction, achieving superior performance compared to sequence-based methods. However, the computational cost of these large models has limited their practical implementation. Recent advances have produced smaller, more efficient protein language models; Lobster \cite{frey2024cramming} achieved competitive performance with orders of magnitude fewer parameters through optimized training procedures. Ankh \cite{elnaggar2023ankh} demonstrated that careful architectural choices can maintain representation quality while reducing computational requirements. Further work has explored various efficiency improvements, such as parameter sharing \cite{sachan2018parameter} and PEFT \cite{sledzieski2024democratizing}, but few studies have addressed the task of efficient structural similarity prediction.
+
+\subsection{Knowledge Distillation in Biology}
+
+Knowledge distillation \cite{hinton2015distilling} has shown promise in compressing large neural networks while preserving performance. In computational biology, DistilProtBERT \cite{geffen2022distilprotbert} successfully reduced ProtBERT's size by 50\% while maintaining accuracy on protein classification tasks. Another paper have showed multi-teacher distillation to reduce time complexity and preserve accuracy across multiple tasks, including binary and mutli-class classification and regression \cite{shang2024accurate}. However, for TM-score prediction, the challenge is not maintaining fine-grained numerical precision, but rather efficiently capturing global structural topology. Since the primary goal is to distinguish between different folds (TM-score > 0.5) rather than minimizing regression error at the decimal level, a massive transformer architecture may be computationally redundant.
+
+
+\section{Methods}
+
+\subsection{TM-Vec 2: Identifying Efficient Foundation Models}
+
+% \begin{figure}
+% \centering
+% \includegraphics[width=1\linewidth]{foundation plms.png}
+% \caption{\label{fig:foundations} Both of the Lobster models show significant speed-up at inference time compared to our baseline based on ProtT5-XL.}
+% \end{figure}
+
+% Improve the diagram by adding notes of lobster's scalability from 2 GPUs to 4 GPUs. Re-draw the diagram in Inkscape for better resolution.
+
+We systematically evaluated three different protein language models as alternatives to ProtT5-XL in the TM-Vec architecture. We examined: 1) Lobster \cite{frey2024cramming} (24M and 150M parameters), an optimized transformer trained with highly efficient attention mechanisms; 2) Ankh    \cite{elnaggar2023ankh}, a larger 450M parameter model featuring architectural optimizations for robust protein sequence encoding; 3) ProtMamba \cite{sgarbossa2025protmamba} (107M parameters), a state-space model that offers a distinct advantage over transformers by achieving linear time complexity with respect to sequence length. 
+
+All inference time benchmarks were conducted using a system with 1x NVIDIA A100 GPU. The experiments utilized a standardized computational environment with identical memory and compute specifications across all model evaluations. Eight distinct sequence length categories were tested: 64, 128, 192, 256, 320, 384, 448, and 512 amino acids. These lengths represent the typical range of protein sequences encountered in structural biology applications. Full results can be found in Appendix. 
+
+\begin{figure}
+\centering
+\includegraphics[width=0.75\linewidth]{finetuning time.png} \caption{\label{fig:finetuning-time}{Bar graph comparing fine-tuning times for state-of-the-art protein language models.}}
+\end{figure}
+
+We also conducted fine-tuning time experiments to identify the foundation model which would be quickest to fine-tune on the TM-Vec training dataset. This was done on a system with 4x A100 GPUs with 10,000 pairs of protein sequences show that Lobster 24M is the fastest to fine-tune, completing in roughly 0.1 hours. Lobster 150M requires slightly more time, hovering around 0.15-0.2 hours, which is still a very fast model to fine-tune compared to our baseline of ProtT5-XL. ProtMamba on the other hand, being a novel architecture with not as much community support, ended up taking more than 6 hours. Therefore, we settled on using Lobster 24M in TM-Vec 2 since it performed well on both inference and fine-tuning speed.
+
+% TODO: Add info from MLSB Appendix A/B here.
+
+
+ \begin{figure}
+ \centering
+ \includegraphics[width=\linewidth]{illustration.png} \caption{\label{fig:illustration}{For each protein pair $(X,Y)$, the TM-Vec teacher generates a TM-score. The student model encodes both sequences using a compact BiLSTM architecture and outputs a predicted TM-score. Training minimizes a composite distillation objective that aligns the student’s predictions with the teacher’s outputs, enabling the student to approximate the structural topology learned by TM-Vec without using protein structures.}}
+ \end{figure}
+
+
+\subsection{TM-Vec Student: Knowledge Distillation Architecture}
+
+The TM-Vec Student model eliminates the dependency on protein language models entirely through knowledge distillation. Operating directly on raw amino acid sequences, the model comprises 1.3 million parameters, which is a significant reduction of over 2,000× compared to the previous ProtT5-XL based architecture. The architecture employs three key components: a BiLSTM-based sequence encoder, a feature fusion module, and a calibrated TM-score predictor.
+
+\subsubsection{Sequence Encoder}
+The architecture utilizes a BiLSTM backbone \cite{hochreiter1997long,graves2005framewise} prioritizing linear space complexity over the quadratic costs of transformer-based alternatives. \cite{abduljabbar2021development}. The encoder maps each amino acid to a 128-dimensional embedding, followed by a 2-layer BiLSTM with 256 hidden units per direction. An attention pooling mechanism aggregates the bidirectional hidden states into a single 256-dimensional sequence representation. This vector then passes through a projection head (256d $\rightarrow$ 512d) to produce the final embedding $z$, maintaining compatibility with the teacher model's embedding space.
+
+\subsubsection{Feature Fusion and TM-Score Prediction}
+Given sequence embeddings $z_a$ and $z_b$, we construct a combined representation: $[z_a, z_b, z_a \odot z_b, |z_a - z_b|]$, where $\odot$ denotes element-wise multiplication. This 2048-dimensional fused representation captures direct similarities, interaction patterns, and structural differences. A 5-layer fully-connected network with progressive dimensionality reduction (2048d $\rightarrow$ 512d $\rightarrow$ 256d $\rightarrow$ 128d $\rightarrow$ 64d $\rightarrow$ 1) processes this representation to predict the final TM-score. The TM-score predictor uses ReLU activations and dropout regularization at each stage to prevent overfitting. The network incorporates temperature scaling and bias correction parameters to improve calibration, which is particularly important for reliable similarity thresholds in remote homology detection.
+
+\subsubsection{Training Objective}
+The student model is trained using a composite loss function designed to balance regression accuracy with classification performance across biologically meaningful similarity ranges. Following established structural biology thresholds \cite{zhang2005tm,xu2010significant}, we partition TM-scores into three buckets: (1) structurally unrelated proteins (TM-score $< 0.17$), where similarity is likely due to random chance; (2) the middle zone ($0.17 \leq$ TM-score $< 0.6$), and (3) same-fold proteins (TM-score $\geq 0.6$). The loss function combines:
+\begin{equation}
+\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{MSE}} + \alpha \cdot \mathcal{L}_{\text{balanced}} + \beta \cdot \mathcal{L}_{\text{focal}} + \gamma \cdot \mathcal{L}_{\text{cal}}
+\end{equation}
+
+where:
+
+$$\mathcal{L}_{\text{MSE}} = \frac{1}{N} \sum_{i=1}^{N} (y_i - \hat{y}_i)^2$$
+
+$$\mathcal{L}_{\text{balanced}} = \frac{1}{N} \sum_{i=1}^{N} w(y_i) \cdot (y_i - \hat{y}_i)^2$$
+
+$$\mathcal{L}_{\text{focal}} = \frac{1}{N} \sum_{i=1}^{N} |y_i - \hat{y}_i| \cdot \underbrace{(y_i - \hat{y}_i)^2}_{\text{MSE}}$$
+
+$$\mathcal{L}_{\text{cal}} = \left( \underbrace{\left( \frac{1}{N} \sum_{i=1}^{N} \hat{y}_i \right)}_{\text{Batch Mean Pred}} - \underbrace{\left( \frac{1}{N} \sum_{i=1}^{N} y_i \right)}_{\text{Batch Mean True}} \right)^2$$
+
+Here, $N$ is the number of protein pairs, $i$ is the index of a specific sample in the batch ($i = 1, \dots, N$), $y_i$ is true TM-score for sample $i$ (teacher output), $\hat{y}_i$ is the predicted TM-score for sample $i$ (student prediction), $y$: The vector of all true scores in the batch, and $\hat{y}$ is the vector of all predicted scores in the batch. $w(y_i)$ is the inverse frequency weight, such that $w$ is high for rare samples.
+
+\subsubsection{Loss Function}
+
+We use $\mathcal{L}_{\text{MSE}}$ to represent the standard mean squared error for regression, $\mathcal{L}_{\text{balanced}}$ re-weights errors within each bucket to counteract the non-uniform data distribution (ensuring the under-represented high-similarity samples receive adequate representation), $\mathcal{L}_{\text{focal}}$ applies focal weighting to emphasize harder-to-classify examples, and $\mathcal{L}_{\text{cal}} = (\overline{\hat{y}} - \overline{y})^2$ penalizes systematic prediction bias which encourages the student model to match the global distribution of
+teacher-predicted TM-scores.  This helps stabilize fold-level thresholds (e.g., $\text{TM} > 0.5$) and reduces systematic over- or under-prediction across similarity regimes. Hyperparameters $\alpha, \beta, \gamma$ balance these components based on validation performance. 
+
+\section{Experimental Setup}
+
+\subsection{Optimized TM-Vec 2 Training} %TODO: Change name
+
+We conducted training for the new TM-Vec 2 model on NAIRR resources provided by the NCSA's DeltaAI cluster. To ensure high representation of structurally similar proteins,the 146M pair dataset was adjusted to include a 5/90/5 split across three TM-score bins: 0-0.17 (low similarity), 0.17-0.6 (medium similarity), and 0.6+ (high similarity). The model trained on 1x GH200 node for 36 hours, and saw 10.6M samples per epoch, balanced according to the bin-based splitting strategy.
+
+\subsection{TM-Vec Student Training Configuration}
+
+The TM-Vec Student model was trained on a dataset of three million protein pairs derived from the ProteinNet database \cite{alquraishi2019proteinnet}, balanced across the three TM-score ranges, using a train/val/test split of 64\%, 16\% and 20\%, respectively. The ground truth TM-score for training the student model was obtained using the TM-Vec model. The student model was trained for 25 epochs on a system with 1x NVIDIA A100 GPU for approximately 7 hours (with a batch size of 64 and AdamW optimizer using learning rate 1e-3, weight decay 0.01).
+
+\subsection{Benchmark Datasets}
+We evaluated all of the models on the CATH S100 dataset, a non-redundant subset of the CATH protein domain database \cite{pearl2003cath}. Specifically, we collected the first 1,000 protein domains from the CATH S100 dataset. They represent four classes, 26 architectures, 223 topologies, and 328 homologous superfamilies. Benchmarking was performed using a computer system with an AMD EPYC 7413 CPU and an NVIDIA A100 GPU (80GB VRAM).
+
+\section{Results}
+
+\subsection{Efficiency Gains}
+
+\begin{table}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|cc|ccccc|}
+\hline
+\textbf{Query Size} & \textbf{Database Size} & \textbf{Blast} & \textbf{TM-Vec} & \textbf{Diamond} & \textbf{Foldseek} & \textbf{TM-Vec Student} \\
+\hline
+10   & 1000   & 9    & 0.6  & 0.521 & 0.640 & \textbf{0.087} \\
+100  & 1000   & 16   & 5    & 0.512 & 1.785 & \textbf{0.096} \\
+1000 & 1000   & 65   & 50   & 0.597 & 10.934 & \textbf{0.194} \\
+10   & 10000  & 10   & 0.7  & 0.573 & 0.612 & \textbf{0.127} \\
+100  & 10000  & 25   & 5.2  & 0.644 & 2.648 & \textbf{0.114} \\
+1000 & 10000  & 131  & 50.2 & 0.775 & 18.640 & \textbf{0.336} \\
+10   & 100000 & 14   & 0.7  & 1.234 & 0.721 & \textbf{0.162} \\
+100  & 100000 & 63   & 5.3  & 1.395 & 2.981 & \textbf{0.272} \\
+1000 & 100000 & 475  & 51   & 1.743 & 20.832 & \textbf{1.692} \\
+\hline
+\end{tabular}%
+}
+\vspace{2pt}
+\caption{Search and alignment speed for TM-Vec Student Model is compared against BLAST \cite{altschul1990basic}, TM-Vec, Foldseek and DIAMOND \cite{buchfink2021sensitive} for different query and database sizes.}
+\label{tab:query_benchmark}
+\end{table}
+
+
+
+Encoding time benchmark (Table \ref{tab:encoding_benchmark}) and Query time benchmark (Table \ref{tab:query_benchmark}), as obtained from TM-Vec \cite{hamamsy2024protein}, show substantial improvements in efficiency over TM-Vec and Foldseek. We use a precomputed database of protein structures obtained from the RCSB Protein Data Bank \cite{rose2016rcsb} to benchmark Foldseek, while the TM-Vec models directly encode and query with protein sequences. The TM-Vec Student model requires $0.967$ seconds for encoding 10000 sequences compared to TM-Vec's $625.72$ seconds and Foldseek's $91.446$ seconds. The student model, by eliminating the dependency on pLMs and using simple feed-forward operations, outperforms Foldseek and shows a 60 to 600× improvement in encoding efficiency over TM-Vec while maintaining comparable accuracy. We observe similar speed-ups while querying against databases of various sizes, as documented in Table \ref{tab:query_benchmark}.
+
+
+
+\subsection{Prediction Accuracy}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{hexbin_results.png}
+    \caption{Pearson R Comparison of Foldseek, TM-Vec 1, TM-Vec 2, and TM-Vec Student} (In Order). TM-Vec models predict pairs more confidently at low similarity as compared to Foldseek, yet maintain similar accuracy.
+    {\label{fig:hexbin-results}}
+\end{figure}
+
+When comparing TM-Vec results to SoTA, accuracy values are consistent with results generated from Foldseek and correlate well with TM-align results.  
+
+\begin{credits}
+\subsubsection{\ackname} This research was supported by the U.S. Department of Energy, Office of Science under award DE-SC0024320. This work utilized computational resources of the DeltaAI supercomputer at the University of Illinois Urbana-Champaign, through the National Artificial Intelligence Research Resource (NAIRR) Pilot program (award: NAIRR250131), and computational resources of the Sol supercomputer at Arizona State University.
+
+\subsubsection{\discintname} The authors have no competing interests to declare that are relevant to this work.
+\end{credits}
+
+\bibliographystyle{splncs04}
+\bibliography{ref}
+
+\appendix
+
+% \clearpage
+
+% \section{Student Model Architecture}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.65\linewidth]{tmvec student.png}
+    \caption{Student Model Architecture}
+    \label{fig:architecture}
+\end{figure}
+
+\end{document}

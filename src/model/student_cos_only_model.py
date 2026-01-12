@@ -97,8 +97,6 @@ class ProteinSequenceEncoder(nn.Module):
 
 class StudentModel(nn.Module):
     """
-    Pure Cosine Similarity Model.
-    Architecture: Encoder Only.
     Prediction: CosineSimilarity(Enc(A), Enc(B))
     """
 
@@ -230,7 +228,7 @@ def create_scatter_plot(true_scores, pred_scores, epoch, r2, plot_dir, save_name
 # TRAINING
 # ==============================================================================
 
-def train_cosine_model(
+def train(
     data_path,
     batch_size=64,
     num_epochs=25,
@@ -365,4 +363,4 @@ if __name__ == '__main__':
     parser.add_argument('--max-samples', type=int, default=None)
     args = parser.parse_args()
 
-    train_cosine_model(args.data, args.batch_size, args.epochs, max_samples=args.max_samples)
+    train(args.data, args.batch_size, args.epochs, max_samples=args.max_samples)
